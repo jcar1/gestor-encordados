@@ -618,39 +618,52 @@
         let currentSolicitudesData = [];
 
         // --- INICIALIZACIÓN DE FIREBASE ---
-        async function initializeFirebase() {
+       async function initializeFirebase() {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        
+        await setPersistence(auth, browserLocalPersistence);
+        
+        // Intenta autenticar primero con token personalizado si existe
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                
-                await setPersistence(auth, browserLocalPersistence);
-                
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        document.getElementById('userIdDisplay').textContent = userId;
-                        
-                        // Configurar referencias a colecciones
-                        jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-                        solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-                        
-                        isAuthReady = true;
-                        loadInitialData();
-                    } else {
-                        try {
-                            await signInAnonymously(auth);
-                        } catch (error) {
-                            console.error("Error en autenticación anónima:", error);
-                            showModalMessage("Error al conectar con la base de datos", "error");
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Error inicializando Firebase:", error);
-                showModalMessage("Error crítico al iniciar la aplicación", "error");
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } catch (tokenError) {
+                console.error("Error con token personalizado:", tokenError);
+                // Si falla, intenta autenticación anónima
+                await signInAnonymously(auth);
             }
+        } else {
+            // Autenticación anónima directa
+            await signInAnonymously(auth);
         }
+
+        // Observador de estado de autenticación
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                document.getElementById('userIdDisplay').textContent = userId;
+                
+                jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+                solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+                
+                isAuthReady = true;
+                loadInitialData();
+                console.log("Autenticación exitosa, UID:", userId);
+            } else {
+                console.log("Usuario no autenticado");
+                document.getElementById('userIdDisplay').textContent = "No autenticado";
+            }
+        });
+
+    } catch (error) {
+        console.error("Error inicializando Firebase:", error);
+        document.getElementById('userIdDisplay').textContent = "Error de conexión";
+        showModalMessage("Error crítico al conectar con Firebase", "error");
+    }
+}
 
         // --- FUNCIONES DE FECHA MEJORADAS ---
         function formatDateForDisplay(timestamp) {
