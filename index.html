@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -618,7 +618,7 @@
         let currentSolicitudesData = [];
 
         // --- INICIALIZACIÓN DE FIREBASE ---
-       async function initializeFirebase() {
+        async function initializeFirebase() {
     try {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
@@ -690,7 +690,7 @@
             
             // Resaltar el botón activo
             const currentButton = document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`);
-            if (currentButton) currentButton.classList.add('active'));
+            if (currentButton) currentButton.classList.add('active');
             
             if (!isAuthReady) return;
 
