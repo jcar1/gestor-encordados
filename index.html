@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -618,26 +618,33 @@
         let currentSolicitudesData = [];
 
         // --- INICIALIZACIÓN DE FIREBASE ---
-        async function initializeFirebase() {
+async function initializeFirebase() {
     try {
         app = initializeApp(firebaseConfig);
         auth = getAuth(app);
         db = getFirestore(app);
         
-        await setPersistence(auth, browserLocalPersistence);
+        console.log("Firebase inicializado");
         
-        // Intenta autenticar primero con token personalizado si existe
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            try {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } catch (tokenError) {
-                console.error("Error con token personalizado:", tokenError);
-                // Si falla, intenta autenticación anónima
-                await signInAnonymously(auth);
-            }
-        } else {
-            // Autenticación anónima directa
+        // Intenta autenticación anónima
+        try {
             await signInAnonymously(auth);
+            console.log("Autenticación anónima exitosa");
+        } catch (authError) {
+            console.error("Error en autenticación anónima:", authError);
+            
+            // Fallback: Usar autenticación con email/contraseña si la anónima falla
+            // Crea un usuario de prueba en Firebase Authentication primero
+            const email = "test@example.com";
+            const password = "test1234";
+            
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                console.log("Autenticación con email exitosa");
+            } catch (emailError) {
+                console.error("Error en autenticación con email:", emailError);
+                throw new Error("No se pudo autenticar con ningún método");
+            }
         }
 
         // Observador de estado de autenticación
@@ -645,13 +652,13 @@
             if (user) {
                 userId = user.uid;
                 document.getElementById('userIdDisplay').textContent = userId;
+                console.log("Usuario autenticado con ID:", userId);
                 
                 jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
                 solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
                 
                 isAuthReady = true;
                 loadInitialData();
-                console.log("Autenticación exitosa, UID:", userId);
             } else {
                 console.log("Usuario no autenticado");
                 document.getElementById('userIdDisplay').textContent = "No autenticado";
@@ -661,7 +668,7 @@
     } catch (error) {
         console.error("Error inicializando Firebase:", error);
         document.getElementById('userIdDisplay').textContent = "Error de conexión";
-        showModalMessage("Error crítico al conectar con Firebase", "error");
+        showModalMessage("Error al conectar con la base de datos: " + error.message, "error");
     }
 }
 
