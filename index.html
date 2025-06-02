@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Encordados de Raquetas v2.3.2</title>
+    <title>Gestor de Encordados de Raquetas v2.4.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -117,6 +117,31 @@
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d1d5db;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e5e7eb;
+        }
+        .autocomplete-active {
+            background-color: #3b82f6 !important;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -153,11 +178,10 @@
             <div id="nuevaSolicitudTab" class="tab-content">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Crear Nueva Solicitud de Encordado</h2>
                 <form id="formNuevaSolicitud" class="space-y-6">
-                    <div>
-                        <label for="solicitudJugadorId" class="block text-sm font-medium text-gray-700 mb-1">Jugador:</label>
-                        <select id="solicitudJugadorId" name="jugadorId" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Seleccione un jugador...</option>
-                        </select>
+                    <div class="autocomplete-container">
+                        <label for="solicitudJugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Buscar Jugador:</label>
+                        <input type="text" id="solicitudJugadorNombre" name="jugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Escriba para buscar...">
+                        <input type="hidden" id="solicitudJugadorId" name="jugadorId">
                         <div id="error-jugadorId" class="error-message"></div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -369,10 +393,17 @@
             <div id="registrarJugadorTab" class="tab-content" style="display: none;">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Registrar Nuevo Jugador</h2>
                 <form id="formRegistrarJugador" class="space-y-6">
-                    <div>
-                        <label for="jugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
-                        <input type="text" id="jugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        <div id="error-nombreCompleto" class="error-message"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="jugadorCodigo" class="block text-sm font-medium text-gray-700 mb-1">Código de Jugador:</label>
+                            <input type="text" id="jugadorCodigo" name="codigo" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-codigo" class="error-message"></div>
+                        </div>
+                        <div>
+                            <label for="jugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
+                            <input type="text" id="jugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-nombreCompleto" class="error-message"></div>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -385,6 +416,35 @@
                             <div id="error-email" class="error-message"></div>
                         </div>
                     </div>
+                    
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-lg font-medium text-gray-800 mb-4">Preferencias de Raqueta</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="jugadorMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
+                                <input type="text" id="jugadorMarcaRaqueta" name="marcaRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="jugadorModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta:</label>
+                                <input type="text" id="jugadorModeloRaqueta" name="modeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                            <div>
+                                <label for="jugadorTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical (lbs/kg):</label>
+                                <input type="number" id="jugadorTensionVertical" name="tensionVertical" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="jugadorTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal (lbs/kg):</label>
+                                <input type="number" id="jugadorTensionHorizontal" name="tensionHorizontal" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label for="jugadorTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda Preferida:</label>
+                            <input type="text" id="jugadorTipoCuerda" name="tipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
                     <div>
                         <button type="submit" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out">
                             <i class="fas fa-user-check mr-2"></i>Registrar Jugador
@@ -400,15 +460,17 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-100">
                             <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Completo</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raqueta</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Registro</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="listaJugadores" class="bg-white divide-y divide-gray-200">
-                           <tr><td colspan="5" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>
+                           <tr><td colspan="7" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -439,20 +501,58 @@
             <h3 class="text-xl font-semibold mb-5">Editar Jugador</h3>
             <form id="formEditJugador" class="space-y-4">
                 <input type="hidden" id="editJugadorId">
-                <div>
-                    <label for="editJugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
-                    <input type="text" id="editJugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                    <div id="error-editNombreCompleto" class="error-message"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editJugadorCodigo" class="block text-sm font-medium text-gray-700 mb-1">Código de Jugador:</label>
+                        <input type="text" id="editJugadorCodigo" name="codigo" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editCodigo" class="error-message"></div>
+                    </div>
+                    <div>
+                        <label for="editJugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
+                        <input type="text" id="editJugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editNombreCompleto" class="error-message"></div>
+                    </div>
                 </div>
-                <div>
-                    <label for="editJugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                    <input type="text" id="editJugadorTelefono" name="telefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editJugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                        <input type="text" id="editJugadorTelefono" name="telefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="editJugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
+                        <input type="email" id="editJugadorEmail" name="email" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editEmail" class="error-message"></div>
+                    </div>
                 </div>
-                <div>
-                    <label for="editJugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
-                    <input type="email" id="editJugadorEmail" name="email" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                    <div id="error-editEmail" class="error-message"></div>
+                
+                <div class="border-t border-gray-200 pt-4">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Preferencias de Raqueta</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="editJugadorMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
+                            <input type="text" id="editJugadorMarcaRaqueta" name="marcaRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="editJugadorModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta:</label>
+                            <input type="text" id="editJugadorModeloRaqueta" name="modeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="editJugadorTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical (lbs/kg):</label>
+                            <input type="number" id="editJugadorTensionVertical" name="tensionVertical" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="editJugadorTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal (lbs/kg):</label>
+                            <input type="number" id="editJugadorTensionHorizontal" name="tensionHorizontal" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="editJugadorTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda Preferida:</label>
+                        <input type="text" id="editJugadorTipoCuerda" name="tipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                 </div>
+                
                 <div class="flex justify-end space-x-3 pt-3">
                     <button type="button" id="cancelEditJugador" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
                     <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Guardar Cambios</button>
@@ -576,7 +676,8 @@
             signInWithCustomToken, 
             onAuthStateChanged,
             setPersistence,
-            browserLocalPersistence 
+            browserLocalPersistence,
+            signInWithEmailAndPassword 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
             getFirestore, 
@@ -596,7 +697,7 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ID de la aplicación
-        const appId = 'gestion-encordados-v2.3.2';
+        const appId = 'gestion-encordados-v2.4.0';
         
         // Inicialización de Firebase
         let app;
@@ -616,61 +717,64 @@
         
         // Datos actuales
         let currentSolicitudesData = [];
+        let jugadoresData = [];
 
         // --- INICIALIZACIÓN DE FIREBASE ---
-async function initializeFirebase() {
-    try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        
-        console.log("Firebase inicializado");
-        
-        // Intenta autenticación anónima
-        try {
-            await signInAnonymously(auth);
-            console.log("Autenticación anónima exitosa");
-        } catch (authError) {
-            console.error("Error en autenticación anónima:", authError);
-            
-            // Fallback: Usar autenticación con email/contraseña si la anónima falla
-            // Crea un usuario de prueba en Firebase Authentication primero
-            const email = "test@example.com";
-            const password = "test1234";
-            
+        async function initializeFirebase() {
             try {
-                await signInWithEmailAndPassword(auth, email, password);
-                console.log("Autenticación con email exitosa");
-            } catch (emailError) {
-                console.error("Error en autenticación con email:", emailError);
-                throw new Error("No se pudo autenticar con ningún método");
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                console.log("Firebase inicializado");
+                
+                // Configurar persistencia de autenticación
+                await setPersistence(auth, browserLocalPersistence);
+                
+                // Intenta autenticación anónima
+                try {
+                    await signInAnonymously(auth);
+                    console.log("Autenticación anónima exitosa");
+                } catch (authError) {
+                    console.error("Error en autenticación anónima:", authError);
+                    
+                    // Fallback: Usar autenticación con email/contraseña si la anónima falla
+                    const email = "test@example.com";
+                    const password = "test1234";
+                    
+                    try {
+                        await signInWithEmailAndPassword(auth, email, password);
+                        console.log("Autenticación con email exitosa");
+                    } catch (emailError) {
+                        console.error("Error en autenticación con email:", emailError);
+                        throw new Error("No se pudo autenticar con ningún método");
+                    }
+                }
+
+                // Observador de estado de autenticación
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('userIdDisplay').textContent = userId;
+                        console.log("Usuario autenticado con ID:", userId);
+                        
+                        jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+                        solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+                        
+                        isAuthReady = true;
+                        loadInitialData();
+                    } else {
+                        console.log("Usuario no autenticado");
+                        document.getElementById('userIdDisplay').textContent = "No autenticado";
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error inicializando Firebase:", error);
+                document.getElementById('userIdDisplay').textContent = "Error de conexión";
+                showModalMessage("Error al conectar con la base de datos: " + error.message, "error");
             }
         }
-
-        // Observador de estado de autenticación
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                document.getElementById('userIdDisplay').textContent = userId;
-                console.log("Usuario autenticado con ID:", userId);
-                
-                jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-                solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-                
-                isAuthReady = true;
-                loadInitialData();
-            } else {
-                console.log("Usuario no autenticado");
-                document.getElementById('userIdDisplay').textContent = "No autenticado";
-            }
-        });
-
-    } catch (error) {
-        console.error("Error inicializando Firebase:", error);
-        document.getElementById('userIdDisplay').textContent = "Error de conexión";
-        showModalMessage("Error al conectar con la base de datos: " + error.message, "error");
-    }
-}
 
         // --- FUNCIONES DE FECHA MEJORADAS ---
         function formatDateForDisplay(timestamp) {
@@ -814,6 +918,61 @@ async function initializeFirebase() {
         document.getElementById('solicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('solicitud'));
         document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('editSolicitud'));
 
+        // --- AUTOCOMPLETADO DE JUGADORES ---
+        function setupAutocomplete() {
+            const input = document.getElementById('solicitudJugadorNombre');
+            const hiddenInput = document.getElementById('solicitudJugadorId');
+            const autocompleteContainer = document.createElement('div');
+            autocompleteContainer.className = 'autocomplete-items';
+            input.parentNode.appendChild(autocompleteContainer);
+
+            input.addEventListener('input', function() {
+                const val = this.value.trim().toLowerCase();
+                autocompleteContainer.innerHTML = '';
+                
+                if (val.length < 2) {
+                    hiddenInput.value = '';
+                    return;
+                }
+
+                const matches = jugadoresData.filter(jugador => 
+                    jugador.nombreCompleto.toLowerCase().includes(val) || 
+                    jugador.codigo.toLowerCase().includes(val)
+                ).slice(0, 5);
+
+                if (matches.length === 0) {
+                    const noResults = document.createElement('div');
+                    noResults.textContent = 'No se encontraron jugadores';
+                    autocompleteContainer.appendChild(noResults);
+                    return;
+                }
+
+                matches.forEach(jugador => {
+                    const item = document.createElement('div');
+                    item.innerHTML = `<strong>${jugador.codigo}</strong> - ${jugador.nombreCompleto}`;
+                    item.addEventListener('click', function() {
+                        input.value = jugador.nombreCompleto;
+                        hiddenInput.value = jugador.id;
+                        autocompleteContainer.innerHTML = '';
+                        
+                        // Autocompletar datos de raqueta
+                        document.getElementById('solicitudMarcaRaqueta').value = jugador.marcaRaqueta || '';
+                        document.getElementById('solicitudModeloRaqueta').value = jugador.modeloRaqueta || '';
+                        document.getElementById('solicitudTensionVertical').value = jugador.tensionVertical || '';
+                        document.getElementById('solicitudTensionHorizontal').value = jugador.tensionHorizontal || '';
+                        document.getElementById('solicitudTipoCuerda').value = jugador.tipoCuerda || '';
+                    });
+                    autocompleteContainer.appendChild(item);
+                });
+            });
+
+            document.addEventListener('click', function(e) {
+                if (e.target !== input) {
+                    autocompleteContainer.innerHTML = '';
+                }
+            });
+        }
+
         // --- GESTIÓN DE JUGADORES ---
         const formRegistrarJugador = document.getElementById('formRegistrarJugador');
         formRegistrarJugador.addEventListener('submit', async (e) => {
@@ -826,17 +985,37 @@ async function initializeFirebase() {
             clearErrorMessages('formRegistrarJugador');
 
             const formData = {
+                codigo: formRegistrarJugador.jugadorCodigo.value.trim(),
                 nombreCompleto: formRegistrarJugador.jugadorNombreCompleto.value.trim(),
                 telefono: formRegistrarJugador.jugadorTelefono.value.trim(),
-                email: formRegistrarJugador.jugadorEmail.value.trim()
+                email: formRegistrarJugador.jugadorEmail.value.trim(),
+                marcaRaqueta: formRegistrarJugador.jugadorMarcaRaqueta.value.trim(),
+                modeloRaqueta: formRegistrarJugador.jugadorModeloRaqueta.value.trim(),
+                tensionVertical: parseFloat(formRegistrarJugador.jugadorTensionVertical.value) || null,
+                tensionHorizontal: parseFloat(formRegistrarJugador.jugadorTensionHorizontal.value) || null,
+                tipoCuerda: formRegistrarJugador.jugadorTipoCuerda.value.trim()
             };
 
             // Validaciones
-            const errors = validateForm(formData, ['nombreCompleto']);
+            const errors = validateForm(formData, ['codigo', 'nombreCompleto']);
             
             if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
                 errors.push("El email no tiene un formato válido");
                 showError('email', "El email no tiene un formato válido");
+            }
+
+            // Verificar si el código ya existe
+            const codigoExists = jugadoresData.some(j => j.codigo === formData.codigo && j.id !== formRegistrarJugador.jugadorId?.value);
+            if (codigoExists) {
+                errors.push("El código de jugador ya existe");
+                showError('codigo', "Este código ya está en uso");
+            }
+
+            // Verificar si el nombre ya existe
+            const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === formData.nombreCompleto.toLowerCase() && j.id !== formRegistrarJugador.jugadorId?.value);
+            if (nombreExists) {
+                errors.push("El nombre de jugador ya existe");
+                showError('nombreCompleto', "Este nombre ya está registrado");
             }
 
             if (errors.length > 0) {
@@ -865,43 +1044,38 @@ async function initializeFirebase() {
             unsubscribeJugadores = onSnapshot(
                 query(jugadoresCollectionRef, orderBy("nombreCompleto")), 
                 (snapshot) => {
-                    const solicitudJugadorSelect = document.getElementById('solicitudJugadorId');
-                    const filtroJugadorSelect = document.getElementById('filtroJugador');
+                    jugadoresData = [];
+                    snapshot.forEach(docSnap => {
+                        jugadoresData.push({ id: docSnap.id, ...docSnap.data() });
+                    });
                     
-                    // Guardar selecciones actuales
-                    const currentSolicitudJugador = solicitudJugadorSelect ? solicitudJugadorSelect.value : '';
-                    const currentFiltroJugador = filtroJugadorSelect ? filtroJugadorSelect.value : '';
+                    const solicitudJugadorSelect = document.getElementById('filtroJugador');
                     
-                    // Limpiar selects
-                    if (solicitudJugadorSelect) solicitudJugadorSelect.innerHTML = '<option value="">Seleccione un jugador...</option>';
-                    if (filtroJugadorSelect) filtroJugadorSelect.innerHTML = '<option value="">Todos los jugadores</option>';
+                    // Guardar selección actual
+                    const currentFiltroJugador = solicitudJugadorSelect ? solicitudJugadorSelect.value : '';
+                    
+                    // Limpiar select
+                    if (solicitudJugadorSelect) solicitudJugadorSelect.innerHTML = '<option value="">Todos los jugadores</option>';
                     
                     // Llenar con datos
-                    snapshot.forEach(docSnap => {
-                        const jugador = { id: docSnap.id, ...docSnap.data() };
-                        
+                    jugadoresData.forEach(jugador => {
                         if (solicitudJugadorSelect) {
                             const option = document.createElement('option');
                             option.value = jugador.id;
-                            option.textContent = jugador.nombreCompleto;
+                            option.textContent = `${jugador.codigo} - ${jugador.nombreCompleto}`;
                             solicitudJugadorSelect.appendChild(option);
-                        }
-                        
-                        if (filtroJugadorSelect) {
-                            const option = document.createElement('option');
-                            option.value = jugador.id;
-                            option.textContent = jugador.nombreCompleto;
-                            filtroJugadorSelect.appendChild(option);
                         }
                     });
                     
-                    // Restaurar selecciones
-                    if (solicitudJugadorSelect && currentSolicitudJugador) {
-                        solicitudJugadorSelect.value = currentSolicitudJugador;
+                    // Restaurar selección
+                    if (solicitudJugadorSelect && currentFiltroJugador) {
+                        solicitudJugadorSelect.value = currentFiltroJugador;
                     }
                     
-                    if (filtroJugadorSelect && currentFiltroJugador) {
-                        filtroJugadorSelect.value = currentFiltroJugador;
+                    // Configurar autocompletado si no está ya configurado
+                    if (!document.getElementById('solicitudJugadorNombre').autocompleteSetup) {
+                        setupAutocomplete();
+                        document.getElementById('solicitudJugadorNombre').autocompleteSetup = true;
                     }
                 }, 
                 error => {
@@ -916,15 +1090,17 @@ async function initializeFirebase() {
             const listaJugadoresBody = document.getElementById('listaJugadores');
             if (!listaJugadoresBody) return;
             
-            listaJugadoresBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>';
+            listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>';
             
             if (unsubscribeJugadoresLista) unsubscribeJugadoresLista();
             
             unsubscribeJugadoresLista = onSnapshot(
                 query(jugadoresCollectionRef, orderBy("nombreCompleto")), 
                 (snapshot) => {
+                    jugadoresData = [];
+                    
                     if (snapshot.empty) {
-                        listaJugadoresBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-gray-500">No hay jugadores registrados.</td></tr>';
+                        listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">No hay jugadores registrados.</td></tr>';
                         return;
                     }
                     
@@ -932,13 +1108,19 @@ async function initializeFirebase() {
                     
                     snapshot.forEach(docSnap => {
                         const jugador = { id: docSnap.id, ...docSnap.data() };
+                        jugadoresData.push(jugador);
                         const tr = document.createElement('tr');
                         tr.className = "hover:bg-gray-50 transition-colors duration-150";
                         
                         tr.innerHTML = `
-                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${jugador.nombreCompleto}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.nombreCompleto}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.telefono || '-'}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                ${jugador.marcaRaqueta || '-'} ${jugador.modeloRaqueta ? `(${jugador.modeloRaqueta})` : ''}
+                                ${jugador.tensionVertical ? `${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs` : ''}
+                            </td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
                                 <button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
@@ -955,7 +1137,7 @@ async function initializeFirebase() {
                 }, 
                 error => {
                     console.error("Error cargando lista de jugadores:", error);
-                    listaJugadoresBody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-red-500">Error al cargar jugadores.</td></tr>';
+                    listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-red-500">Error al cargar jugadores.</td></tr>';
                 }
             );
         }
@@ -971,9 +1153,15 @@ async function initializeFirebase() {
                     const jugador = docSnap.data();
                     
                     formEditJugador.editJugadorId.value = jugadorId;
+                    formEditJugador.editJugadorCodigo.value = jugador.codigo;
                     formEditJugador.editJugadorNombreCompleto.value = jugador.nombreCompleto;
                     formEditJugador.editJugadorTelefono.value = jugador.telefono || '';
                     formEditJugador.editJugadorEmail.value = jugador.email || '';
+                    formEditJugador.editJugadorMarcaRaqueta.value = jugador.marcaRaqueta || '';
+                    formEditJugador.editJugadorModeloRaqueta.value = jugador.modeloRaqueta || '';
+                    formEditJugador.editJugadorTensionVertical.value = jugador.tensionVertical || '';
+                    formEditJugador.editJugadorTensionHorizontal.value = jugador.tensionHorizontal || '';
+                    formEditJugador.editJugadorTipoCuerda.value = jugador.tipoCuerda || '';
                     
                     editJugadorModal.style.display = 'flex';
                 } else {
@@ -991,10 +1179,16 @@ async function initializeFirebase() {
             clearErrorMessages('formEditJugador');
 
             const jugadorId = formEditJugador.editJugadorId.value;
+            const codigo = formEditJugador.editJugadorCodigo.value.trim();
             const nombreCompleto = formEditJugador.editJugadorNombreCompleto.value.trim();
             const email = formEditJugador.editJugadorEmail.value.trim();
             
             // Validaciones
+            if (!codigo) {
+                showError('editCodigo', "El código de jugador es obligatorio");
+                return;
+            }
+            
             if (!nombreCompleto) {
                 showError('editNombreCompleto', "El nombre completo es obligatorio");
                 return;
@@ -1005,13 +1199,34 @@ async function initializeFirebase() {
                 return;
             }
 
+            // Verificar si el código ya existe (excluyendo el jugador actual)
+            const codigoExists = jugadoresData.some(j => j.codigo === codigo && j.id !== jugadorId);
+            if (codigoExists) {
+                showError('editCodigo', "Este código ya está en uso");
+                return;
+            }
+
+            // Verificar si el nombre ya existe (excluyendo el jugador actual)
+            const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === nombreCompleto.toLowerCase() && j.id !== jugadorId);
+            if (nombreExists) {
+                showError('editNombreCompleto', "Este nombre ya está registrado");
+                return;
+            }
+
             try {
                 const jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
                 
                 await updateDoc(jugadorDocRef, {
+                    codigo,
                     nombreCompleto,
                     telefono: formEditJugador.editJugadorTelefono.value.trim(),
                     email,
+                    marcaRaqueta: formEditJugador.editJugadorMarcaRaqueta.value.trim(),
+                    modeloRaqueta: formEditJugador.editJugadorModeloRaqueta.value.trim(),
+                    tensionVertical: parseFloat(formEditJugador.editJugadorTensionVertical.value) || null,
+                    tensionHorizontal: parseFloat(formEditJugador.editJugadorTensionHorizontal.value) || null,
+                    tipoCuerda: formEditJugador.editJugadorTipoCuerda.value.trim(),
+                    fechaUltimaActualizacion: Timestamp.now()
                 });
                 
                 showModalMessage("Jugador actualizado correctamente.", "success");
@@ -1030,6 +1245,15 @@ async function initializeFirebase() {
                     if (!isAuthReady) return;
                     
                     try {
+                        // Verificar si el jugador tiene solicitudes asociadas
+                        const q = query(solicitudesCollectionRef, where("jugadorId", "==", jugadorId));
+                        const querySnapshot = await getDocs(q);
+                        
+                        if (!querySnapshot.empty) {
+                            showModalMessage("No se puede eliminar el jugador porque tiene solicitudes asociadas.", "error");
+                            return;
+                        }
+                        
                         await deleteDoc(doc(jugadoresCollectionRef, jugadorId));
                         showModalMessage(`Jugador "${nombreDecodificado}" eliminado correctamente.`, "success");
                     } catch (error) {
@@ -1051,17 +1275,16 @@ async function initializeFirebase() {
             clearErrorMessages('formNuevaSolicitud');
 
             const jugadorId = formNuevaSolicitud.jugadorId.value;
-            const jugadorSelect = formNuevaSolicitud.jugadorId;
-            const nombreJugador = jugadorSelect.options[jugadorSelect.selectedIndex]?.text || "N/A";
+            const jugadorNombre = formNuevaSolicitud.jugadorNombre.value.trim();
 
-            if (!jugadorId) {
-                showError('jugadorId', "Debe seleccionar un jugador");
+            if (!jugadorId || !jugadorNombre) {
+                showError('jugadorId', "Debe seleccionar un jugador válido");
                 return;
             }
 
             const formData = {
                 jugadorId,
-                nombreJugador,
+                nombreJugador: jugadorNombre,
                 marcaRaqueta: formNuevaSolicitud.marcaRaqueta.value.trim(),
                 modeloRaqueta: formNuevaSolicitud.modeloRaqueta.value.trim(),
                 tensionVertical: parseFloat(formNuevaSolicitud.tensionVertical.value),
@@ -1116,6 +1339,9 @@ async function initializeFirebase() {
                 // Restablecer fecha actual
                 document.getElementById('solicitudFechaSolicitud').valueAsDate = new Date();
                 actualizarPrecioSugerido('solicitud');
+                // Limpiar autocompletado
+                document.getElementById('solicitudJugadorNombre').value = '';
+                document.getElementById('solicitudJugadorId').value = '';
             } catch (error) {
                 console.error("Error registrando solicitud:", error);
                 showModalMessage("Error al registrar solicitud", "error");
