@@ -142,6 +142,34 @@
             background-color: #3b82f6 !important;
             color: #ffffff;
         }
+		.autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d1d5db;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d1d5db;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e5e7eb;
+        }
+        .autocomplete-active {
+            background-color: #3b82f6 !important;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -178,13 +206,15 @@
             <div id="nuevaSolicitudTab" class="tab-content">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Crear Nueva Solicitud de Encordado</h2>
                 <form id="formNuevaSolicitud" class="space-y-6">
-                    <div class="autocomplete-container">
-                        <label for="solicitudJugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Buscar Jugador:</label>
-                        <input type="text" id="solicitudJugadorNombre" name="jugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Escriba para buscar...">
-                        <input type="hidden" id="solicitudJugadorId" name="jugadorId">
-                        <div id="error-jugadorId" class="error-message"></div>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+					<div class="autocomplete-container">
+						<label for="solicitudJugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Buscar Jugador:</label>
+						<input type="text" id="solicitudJugadorNombre" name="jugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Escriba código o nombre...">
+						<input type="hidden" id="solicitudJugadorId" name="jugadorId">
+						<div id="error-jugadorId" class="error-message"></div>
+					</div>
+                   
+				   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label for="solicitudMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
                             <input type="text" id="solicitudMarcaRaqueta" name="marcaRaqueta" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
@@ -919,6 +949,7 @@
         document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('editSolicitud'));
 
         // --- AUTOCOMPLETADO DE JUGADORES ---
+ 
         function setupAutocomplete() {
             const input = document.getElementById('solicitudJugadorNombre');
             const hiddenInput = document.getElementById('solicitudJugadorId');
@@ -1264,16 +1295,10 @@
         };
 
         // --- GESTIÓN DE SOLICITUDES DE ENCORDADO ---
-        const formNuevaSolicitud = document.getElementById('formNuevaSolicitud');
+         const formNuevaSolicitud = document.getElementById('formNuevaSolicitud');
         formNuevaSolicitud.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!isAuthReady || !solicitudesCollectionRef || !jugadoresCollectionRef) {
-                showModalMessage("Error: La base de datos no está lista.", "error");
-                return;
-            }
-
-            clearErrorMessages('formNuevaSolicitud');
-
+            
             const jugadorId = formNuevaSolicitud.jugadorId.value;
             const jugadorNombre = formNuevaSolicitud.jugadorNombre.value.trim();
 
