@@ -687,89 +687,116 @@
     </div>
 
     <script type="module">
-        // Configuración de Firebase
-		const firebaseConfig = {
-			apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
-			authDomain: "gestion-de-encordados.firebaseapp.com",
-			projectId: "gestion-de-encordados",
-			storageBucket: "gestion-de-encordados.firebasestorage.app",
-			messagingSenderId: "898210321428",
-			appId: "1:898210321428:web:08162c1a38e557605dc301",
-			measurementId: "G-VJG0HVKMZV"
-};
-	   
-	   // Credenciales fijas (puedes cambiarlas)
-        const FIXED_CREDENTIALS = {
-            email: "jcsueca@gmail.com",
-            password: "123456"
-        };
-	   
-        // Importaciones de Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged,
-            setPersistence,
-            browserLocalPersistence,
-            signInWithEmailAndPassword 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            getDocs, 
-            onSnapshot,
-            doc, 
-            getDoc, 
-            updateDoc,
-            deleteDoc, 
-            Timestamp,
-            query,
-            where,
-            orderBy,
-            writeBatch 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // Configuración de Firebase
+    const firebaseConfig = {
+        apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
+        authDomain: "gestion-de-encordados.firebaseapp.com",
+        projectId: "gestion-de-encordados",
+        storageBucket: "gestion-de-encordados.firebasestorage.app",
+        messagingSenderId: "898210321428",
+        appId: "1:898210321428:web:08162c1a38e557605dc301",
+        measurementId: "G-VJG0HVKMZV"
+    };
 
-        // ID de la aplicación
-        const appId = 'gestion-encordados-v2.4.0';
-        
-        // Inicialización de Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-		
-		// Función de autenticación mejorada
-        async function authenticate() {
-			try {
-        await setPersistence(auth, browserLocalPersistence);
-        const userCredential = await signInWithEmailAndPassword(
-            auth, 
-            FIXED_CREDENTIALS.email, 
-            FIXED_CREDENTIALS.password
-        );
-        return userCredential.user;
-		} catch (error) {
-        console.error("Error de autenticación:", error);
-        showModalMessage("Error al conectar con la base de datos", "error");
-        return null;
+    // Credenciales fijas
+    const FIXED_CREDENTIALS = {
+        email: "jcsueca@gmail.com",
+        password: "123456"
+    };
+
+    // Importaciones de Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+        getAuth, 
+        signInWithEmailAndPassword,
+        setPersistence,
+        browserLocalPersistence,
+        onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+        getFirestore, 
+        collection, 
+        doc,
+        getDoc,
+        setDoc,
+        updateDoc,
+        deleteDoc,
+        getDocs,
+        query,
+        where,
+        orderBy,
+        Timestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Inicialización de Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Referencias a colecciones
+    let jugadoresCollectionRef;
+    let solicitudesCollectionRef;
+    let userId = null;
+    let isAuthReady = false;
+
+    // Función de autenticación
+    async function authenticate() {
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+            const userCredential = await signInWithEmailAndPassword(
+                auth, 
+                FIXED_CREDENTIALS.email, 
+                FIXED_CREDENTIALS.password
+            );
+            return userCredential.user;
+        } catch (error) {
+            console.error("Error de autenticación:", error);
+            showModalMessage("Error al conectar con la base de datos", "error");
+            return null;
+        }
     }
-}
+
+    // Observador de estado de autenticación
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            document.getElementById('userIdDisplay').textContent = userId;
+            console.log("Usuario autenticado con ID:", userId);
+            
+            // Configurar referencias a la base de datos
+            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            
+            isAuthReady = true;
+            loadInitialData();
+        } else {
+            console.log("Usuario no autenticado");
+            document.getElementById('userIdDisplay').textContent = "No autenticado";
+            // Intentar autenticar si no hay usuario
+            authenticate();
+        }
+    });
 
         // Inicialización principal
-        async function initializeApp() {
+      async function initializeApp() {
+        try {
             const user = await authenticate();
             if (user) {
+                userId = user.uid;
+                document.getElementById('userIdDisplay').textContent = userId;
+                
                 // Configurar referencias a la base de datos
-                const userId = "fixed_user"; // ID consistente para todos
                 jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
                 solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
                 
-                // Cargar datos iniciales
+                isAuthReady = true;
                 loadInitialData();
             }
+        } catch (error) {
+            console.error("Error inicializando la aplicación:", error);
+            document.getElementById('userIdDisplay').textContent = "Error de conexión";
         }
+    }
 
         // Referencias a colecciones
         let jugadoresCollectionRef;
@@ -1976,9 +2003,9 @@
 
         // --- INICIALIZACIÓN DE LA APLICACIÓN ---
         document.addEventListener('DOMContentLoaded', () => {
-            initializeApp();
-            showTab('nuevaSolicitudTab');
-        });
+        initializeApp();
+        showTab('nuevaSolicitudTab');
+    });
     </script>
 </body>
 </html>
