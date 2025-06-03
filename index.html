@@ -699,7 +699,7 @@
 	   
 	   // Credenciales fijas (puedes cambiarlas)
         const FIXED_CREDENTIALS = {
-            email: "jcar.valencia.com",
+            email: "jcsueca@gmail.com",
             password: "123456"
         };
 	   
@@ -741,20 +741,20 @@
 		
 		// Función de autenticación mejorada
         async function authenticate() {
-            try {
-                await setPersistence(auth, browserLocalPersistence);
-                const userCredential = await signInWithEmailAndPassword(
-                    auth, 
-                    FIXED_CREDENTIALS.jcar.valencia@gmail.com, 
-                    FIXED_CREDENTIALS.123456
-                );
-                return userCredential.user;
-            } catch (error) {
-                console.error("Error de autenticación:", error);
-                showModalMessage("Error al conectar con la base de datos", "error");
-                return null;
-            }
-        }
+			try {
+        await setPersistence(auth, browserLocalPersistence);
+        const userCredential = await signInWithEmailAndPassword(
+            auth, 
+            FIXED_CREDENTIALS.email, 
+            FIXED_CREDENTIALS.password
+        );
+        return userCredential.user;
+		} catch (error) {
+        console.error("Error de autenticación:", error);
+        showModalMessage("Error al conectar con la base de datos", "error");
+        return null;
+    }
+}
 
         // Inicialización principal
         async function initializeApp() {
