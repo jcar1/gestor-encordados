@@ -688,16 +688,21 @@
 
     <script type="module">
         // Configuración de Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
-            authDomain: "gestion-de-encordados.firebaseapp.com",
-            projectId: "gestion-de-encordados",
-            storageBucket: "gestion-de-encordados.appspot.com",
-            messagingSenderId: "898210321428",
-            appId: "1:898210321428:web:08162c1a38e557605dc301",
-            measurementId: "G-VJG0HVKMZV"
+		const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_PROYECTO.firebaseapp.com",
+            projectId: "TU_PROYECTO",
+            storageBucket: "TU_PROYECTO.appspot.com",
+            messagingSenderId: "TU_SENDER_ID",
+            appId: "TU_APP_ID"
         };
-
+	   
+	   // Credenciales fijas (puedes cambiarlas)
+        const FIXED_CREDENTIALS = {
+            email: "jcar.valencia.com",
+            password: "123456"
+        };
+	   
         // Importaciones de Firebase
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
@@ -730,11 +735,40 @@
         const appId = 'gestion-encordados-v2.4.0';
         
         // Inicialización de Firebase
-        let app;
-        let auth;
-        let db;
-        let userId;
-        let isAuthReady = false;
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+		
+		// Función de autenticación mejorada
+        async function authenticate() {
+            try {
+                await setPersistence(auth, browserLocalPersistence);
+                const userCredential = await signInWithEmailAndPassword(
+                    auth, 
+                    FIXED_CREDENTIALS.email, 
+                    FIXED_CREDENTIALS.password
+                );
+                return userCredential.user;
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                showModalMessage("Error al conectar con la base de datos", "error");
+                return null;
+            }
+        }
+
+        // Inicialización principal
+        async function initializeApp() {
+            const user = await authenticate();
+            if (user) {
+                // Configurar referencias a la base de datos
+                const userId = "fixed_user"; // ID consistente para todos
+                jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+                solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+                
+                // Cargar datos iniciales
+                loadInitialData();
+            }
+        }
 
         // Referencias a colecciones
         let jugadoresCollectionRef;
@@ -1941,7 +1975,7 @@
 
         // --- INICIALIZACIÓN DE LA APLICACIÓN ---
         document.addEventListener('DOMContentLoaded', () => {
-            initializeFirebase();
+            initializeApp();
             showTab('nuevaSolicitudTab');
         });
     </script>
