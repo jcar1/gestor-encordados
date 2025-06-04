@@ -711,7 +711,7 @@ const firebaseConfig = {
 // Credenciales fijas
 const FIXED_CREDENTIALS = {
     email: "jcsueca@gmail.com",
-    password: "123456"
+    password: "A123456!"
 };
 
 // Importaciones de Firebase
@@ -770,7 +770,16 @@ async function authenticateUser() {
         return userCredential.user;
     } catch (error) {
         console.error("Error de autenticación:", error);
-        showModalMessage("Error al conectar con la base de datos", "error");
+        
+        // Mostrar mensaje más descriptivo
+        let errorMessage = "Error de autenticación";
+        if (error.code === 'auth/invalid-credential') {
+            errorMessage = "Credenciales inválidas. Verifica el email y contraseña.";
+        } else if (error.code === 'auth/too-many-requests') {
+            errorMessage = "Demasiados intentos. Por favor espera e intenta más tarde.";
+        }
+        
+        showModalMessage(errorMessage, "error");
         return null;
     }
 }
@@ -788,12 +797,20 @@ async function initApplication() {
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
             
             isAuthReady = true;
-            loadInitialData();
-            showTab('nuevaSolicitudTab');
+            
+            // Cargar datos iniciales con manejo de errores
+            try {
+                await loadInitialData();
+                showTab('nuevaSolicitudTab');
+            } catch (loadError) {
+                console.error("Error cargando datos iniciales:", loadError);
+                showModalMessage("Error al cargar datos iniciales", "error");
+            }
         }
     } catch (error) {
         console.error("Error inicializando la aplicación:", error);
         document.getElementById('userIdDisplay').textContent = "Error de conexión";
+        showModalMessage("Error al iniciar la aplicación. Por favor recarga la página.", "error");
     }
 }
 
@@ -819,6 +836,20 @@ onAuthStateChanged(auth, (user) => {
         authenticateUser();
     }
 });
+ // JC
+	function checkAuth() {
+		if (!isAuthReady) {
+			showModalMessage("La aplicación no está autenticada correctamente", "error");
+        return false;
+    }
+    return true;
+}
+
+// Usar en todas las funciones que acceden a Firestore
+async function loadJugadoresParaDropdown() {
+    if (!checkAuth()) return;
+    // resto del código...
+}
 
     // Inicialización principal
     async function initializeApp() {
