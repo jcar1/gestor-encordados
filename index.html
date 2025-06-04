@@ -845,9 +845,21 @@
         return true;
     }
 // Usar en todas las funciones que acceden a Firestore
-async function loadJugadoresParaDropdown() {
-    if (!checkAuth()) return;
-    // resto del código...
+function loadJugadoresParaDropdown() {
+    if (!checkAuth() || !jugadoresCollectionRef) return;
+
+    getDocs(query(jugadoresCollectionRef, orderBy("nombreCompleto"))).then(snapshot => {
+        jugadoresData = [];
+        snapshot.forEach(doc => {
+            jugadoresData.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Activar autocompletado luego de tener los datos cargados
+        setupAutocomplete();
+    }).catch(error => {
+        console.error("Error cargando jugadores para dropdown:", error);
+        showModalMessage("Error al cargar jugadores", "error");
+    });
 }
 
     // Inicialización principal
