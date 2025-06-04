@@ -1142,54 +1142,7 @@ async function loadJugadoresParaDropdown() {
         }
     });
 
-    function loadJugadoresParaDropdown() {
-        if (!isAuthReady || !jugadoresCollectionRef) return;
-        
-        if (unsubscribeJugadores) unsubscribeJugadores();
-        
-        unsubscribeJugadores = onSnapshot(
-            query(jugadoresCollectionRef, orderBy("nombreCompleto")), 
-            (snapshot) => {
-                jugadoresData = [];
-                snapshot.forEach(docSnap => {
-                    jugadoresData.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                
-                const solicitudJugadorSelect = document.getElementById('filtroJugador');
-                
-                // Guardar selección actual
-                const currentFiltroJugador = solicitudJugadorSelect ? solicitudJugadorSelect.value : '';
-                
-                // Limpiar select
-                if (solicitudJugadorSelect) solicitudJugadorSelect.innerHTML = '<option value="">Todos los jugadores</option>';
-                
-                // Llenar con datos
-                jugadoresData.forEach(jugador => {
-                    if (solicitudJugadorSelect) {
-                        const option = document.createElement('option');
-                        option.value = jugador.id;
-                        option.textContent = `${jugador.codigo} - ${jugador.nombreCompleto}`;
-                        solicitudJugadorSelect.appendChild(option);
-                    }
-                });
-                
-                // Restaurar selección
-                if (solicitudJugadorSelect && currentFiltroJugador) {
-                    solicitudJugadorSelect.value = currentFiltroJugador;
-                }
-                
-                // Configurar autocompletado si no está ya configurado
-                if (!document.getElementById('solicitudJugadorNombre').autocompleteSetup) {
-                    setupAutocomplete();
-                    document.getElementById('solicitudJugadorNombre').autocompleteSetup = true;
-                }
-            }, 
-            error => {
-                console.error("Error cargando jugadores para dropdown:", error);
-            }
-        );
-    }
-
+    
     function loadJugadoresParaLista() {
         if (!isAuthReady || !jugadoresCollectionRef) return;
         
@@ -2218,7 +2171,7 @@ async function loadJugadoresParaDropdown() {
         console.log("Auth is ready, loading initial data");
         
         // Cargar jugadores para dropdowns
-        //loadJugadoresParaDropdown();
+        loadJugadoresParaDropdown();
         
         // Cargar solicitudes iniciales
         loadSolicitudes();
@@ -2238,3 +2191,4 @@ async function loadJugadoresParaDropdown() {
     </script>
 </body>
 </html>
+
