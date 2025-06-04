@@ -696,90 +696,92 @@
     </div>
 
     <script type="module">
-    // Configuración de Firebase
-    const firebaseConfig = {
-        apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
-        authDomain: "gestion-de-encordados.firebaseapp.com",
-        projectId: "gestion-de-encordados",
-        storageBucket: "gestion-de-encordados.firebasestorage.app",
-        messagingSenderId: "898210321428",
-        appId: "1:898210321428:web:08162c1a38e557605dc301",
-        measurementId: "G-VJG0HVKMZV"
-    };
+    
+	// Configuración de Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
+    authDomain: "gestion-de-encordados.firebaseapp.com",
+    projectId: "gestion-de-encordados",
+    storageBucket: "gestion-de-encordados.firebasestorage.app",
+    messagingSenderId: "898210321428",
+    appId: "1:898210321428:web:08162c1a38e557605dc301",
+    measurementId: "G-VJG0HVKMZV"
+};
 
-    // Credenciales fijas
-    const FIXED_CREDENTIALS = {
-        email: "jcsueca@gmail.com",
-        password: "123456"
-    };
+// Credenciales fijas
+const FIXED_CREDENTIALS = {
+    email: "jcsueca@gmail.com",
+    password: "123456"
+};
 
-    // Importaciones de Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-        getAuth, 
-        signInWithEmailAndPassword,
-        setPersistence,
-        browserLocalPersistence,
-        onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-        getFirestore, 
-        collection, 
-        doc,
-        getDoc,
-        setDoc,
-        updateDoc,
-        deleteDoc,
-        getDocs,
-        query,
-        where,
-        orderBy,
-        Timestamp,
-        writeBatch,
-        addDoc,
-        onSnapshot
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+// Importaciones de Firebase
+import { initializeApp as initializeFirebaseApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { 
+    getAuth, 
+    signInWithEmailAndPassword,
+    setPersistence,
+    browserLocalPersistence,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { 
+    getFirestore, 
+    collection, 
+    doc,
+    getDoc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    getDocs,
+    query,
+    where,
+    orderBy,
+    Timestamp,
+    writeBatch,
+    addDoc,
+    onSnapshot
+} from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // Inicialización de Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+// Inicialización de Firebase
+const app = initializeFirebaseApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-    // Referencias a colecciones
-    let jugadoresCollectionRef;
-    let solicitudesCollectionRef;
-    let userId = null;
-    let isAuthReady = false;
+// Referencias a colecciones
+let jugadoresCollectionRef;
+let solicitudesCollectionRef;
+let userId = null;
+let isAuthReady = false;
 
-    // Variables para gráficos
-    let pagoChart = null;
-    let entregaChart = null;
-    let ingresosChart = null;
-    let jugadoresChart = null;
+// Variables para gráficos
+let pagoChart = null;
+let entregaChart = null;
+let ingresosChart = null;
+let jugadoresChart = null;
 
-    // Función de autenticación
-    async function authenticate() {
-        try {
-            await setPersistence(auth, browserLocalPersistence);
-            const userCredential = await signInWithEmailAndPassword(
-                auth, 
-                FIXED_CREDENTIALS.email, 
-                FIXED_CREDENTIALS.password
-            );
-            return userCredential.user;
-        } catch (error) {
-            console.error("Error de autenticación:", error);
-            showModalMessage("Error al conectar con la base de datos", "error");
-            return null;
-        }
+// Función de autenticación
+async function authenticateUser() {
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+        const userCredential = await signInWithEmailAndPassword(
+            auth, 
+            FIXED_CREDENTIALS.email, 
+            FIXED_CREDENTIALS.password
+        );
+        return userCredential.user;
+    } catch (error) {
+        console.error("Error de autenticación:", error);
+        showModalMessage("Error al conectar con la base de datos", "error");
+        return null;
     }
+}
 
-    // Observador de estado de autenticación
-    onAuthStateChanged(auth, (user) => {
+// Función principal de inicialización
+async function initApplication() {
+    try {
+        const user = await authenticateUser();
         if (user) {
             userId = user.uid;
             document.getElementById('userIdDisplay').textContent = userId;
-            console.log("Usuario autenticado con ID:", userId);
             
             // Configurar referencias a la base de datos
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
@@ -787,13 +789,36 @@
             
             isAuthReady = true;
             loadInitialData();
-        } else {
-            console.log("Usuario no autenticado");
-            document.getElementById('userIdDisplay').textContent = "No autenticado";
-            // Intentar autenticar si no hay usuario
-            authenticate();
+            showTab('nuevaSolicitudTab');
         }
-    });
+    } catch (error) {
+        console.error("Error inicializando la aplicación:", error);
+        document.getElementById('userIdDisplay').textContent = "Error de conexión";
+    }
+}
+
+// Observador de estado de autenticación
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        userId = user.uid;
+        document.getElementById('userIdDisplay').textContent = userId;
+        console.log("Usuario autenticado con ID:", userId);
+        
+        if (!isAuthReady) {
+            // Configurar referencias a la base de datos
+            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            
+            isAuthReady = true;
+            loadInitialData();
+        }
+    } else {
+        console.log("Usuario no autenticado");
+        document.getElementById('userIdDisplay').textContent = "No autenticado";
+        // Intentar autenticar si no hay usuario
+        authenticateUser();
+    }
+});
 
     // Inicialización principal
     async function initializeApp() {
@@ -2176,10 +2201,9 @@
     }
 
     // --- INICIALIZACIÓN DE LA APLICACIÓN ---
-    document.addEventListener('DOMContentLoaded', () => {
-        initializeApp();
-        showTab('nuevaSolicitudTab');
-    });
+		document.addEventListener('DOMContentLoaded', () => {
+			initApplication();
+});
     </script>
 </body>
 </html>
