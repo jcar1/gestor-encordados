@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Encordados de Raquetas v2.5.0</title>
+    <title>Gestor de Encordados de Raquetas v2.6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Chart.js para gráficos estadísticos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
@@ -253,10 +252,10 @@
                             </select>
                             <div id="error-estadoPago" class="error-message"></div>
                         </div>
-						<div>
-							<label for="solicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
-							<input type="date" id="solicitudFechaPago" name="fechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-						</div>
+                        <div>
+                            <label for="solicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
+                            <input type="date" id="solicitudFechaPago" name="fechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
                     </div>
                     <div>
                         <label for="solicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
@@ -338,6 +337,11 @@
                                 <i class="fas fa-file-export mr-2"></i>Exportar a CSV (Filtradas)
                             </button>
                         </div>
+                        <div class="flex-1 sm:text-right">
+                            <button id="btnDeleteSelected" class="mt-2 w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out text-sm">
+                                <i class="fas fa-trash-alt mr-2"></i>Eliminar Seleccionadas
+                            </button>
+                        </div>
                     </div>
                     <p class="mt-3 text-xs text-gray-500">
                         <strong>Formato CSV esperado para importar:</strong><br>
@@ -350,8 +354,9 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-100">
                             <tr>
-    <th>Fecha de Pago</th>
-    <th>Fecha de Pago</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <input type="checkbox" id="selectAllSolicitudes" class="form-checkbox h-4 w-4">
+                                </th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jugador</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raqueta</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tensión (V/H)</th>
@@ -359,13 +364,12 @@
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Entrega Est.</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio (€)</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pago</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Pago</th>
-								<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrega</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrega</th>
                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="listaSolicitudes" class="bg-white divide-y divide-gray-200">
-                            <tr><td colspan="9" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>
+                            <tr><td colspan="10" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -678,10 +682,10 @@
                         </select>
                         <div id="error-editEstadoPago" class="error-message"></div>
                     </div>
-					<div>
-						<label for="editSolicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
-						<input type="date" id="editSolicitudFechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-					</div>
+                    <div>
+                        <label for="editSolicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
+                        <input type="date" id="editSolicitudFechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                    </div>
                 </div>
                 <div>
                     <label for="editSolicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado Entrega:</label>
@@ -707,9 +711,8 @@
     </div>
 
     <script type="module">
-    
-	// Configuración de Firebase
-	const firebaseConfig = {
+    // Configuración de Firebase
+    const firebaseConfig = {
         apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
         authDomain: "gestion-de-encordados.firebaseapp.com",
         projectId: "gestion-de-encordados",
@@ -855,23 +858,23 @@
         }
         return true;
     }
-// Usar en todas las funciones que acceden a Firestore
-function loadJugadoresParaDropdown() {
-    if (!checkAuth() || !jugadoresCollectionRef) return;
 
-    getDocs(query(jugadoresCollectionRef, orderBy("nombreCompleto"))).then(snapshot => {
-        jugadoresData = [];
-        snapshot.forEach(doc => {
-            jugadoresData.push({ id: doc.id, ...doc.data() });
+    function loadJugadoresParaDropdown() {
+        if (!checkAuth() || !jugadoresCollectionRef) return;
+
+        getDocs(query(jugadoresCollectionRef, orderBy("nombreCompleto"))).then(snapshot => {
+            jugadoresData = [];
+            snapshot.forEach(doc => {
+                jugadoresData.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Activar autocompletado luego de tener los datos cargados
+            setupAutocomplete();
+        }).catch(error => {
+            console.error("Error cargando jugadores para dropdown:", error);
+            showModalMessage("Error al cargar jugadores", "error");
         });
-
-        // Activar autocompletado luego de tener los datos cargados
-        setupAutocomplete();
-    }).catch(error => {
-        console.error("Error cargando jugadores para dropdown:", error);
-        showModalMessage("Error al cargar jugadores", "error");
-    });
-}
+    }
 
     // Inicialización principal
     async function initializeApp() {
@@ -1121,7 +1124,7 @@ function loadJugadoresParaDropdown() {
             modeloRaqueta: formRegistrarJugador.jugadorModeloRaqueta.value.trim(),
             tensionVertical: parseFloat(formRegistrarJugador.jugadorTensionVertical.value) || null,
             tensionHorizontal: parseFloat(formRegistrarJugador.jugadorTensionHorizontal.value) || null,
-			fechaPago: parseDateInput(document.getElementById('editSolicitudFechaPago').value),
+            fechaPago: parseDateInput(document.getElementById('editSolicitudFechaPago').value),
             tipoCuerda: formRegistrarJugador.jugadorTipoCuerda.value.trim()
         };
 
@@ -1370,7 +1373,7 @@ function loadJugadoresParaDropdown() {
             fechaSolicitud: parseDateInput(formNuevaSolicitud.fechaSolicitud.value),
             fechaEntregaEstimada: parseDateInput(formNuevaSolicitud.fechaEntregaEstimada.value),
             fechaPago: parseDateInput(formNuevaSolicitud.fechaPago.value),
-			precio: parseFloat(formNuevaSolicitud.precio.value) || 0,
+            precio: parseFloat(formNuevaSolicitud.precio.value) || 0,
             estadoPago: formNuevaSolicitud.estadoPago.value,
             estadoEntrega: "Pendiente",
             notas: formNuevaSolicitud.notas.value.trim()
@@ -1431,7 +1434,7 @@ function loadJugadoresParaDropdown() {
         const listaSolicitudesBody = document.getElementById('listaSolicitudes');
         if (!listaSolicitudesBody) return;
         
-        listaSolicitudesBody.innerHTML = '<tr><td colspan="9" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>';
+        listaSolicitudesBody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>';
         
         let conditions = [];
         
@@ -1480,7 +1483,7 @@ function loadJugadoresParaDropdown() {
                 currentSolicitudesData = [];
                 
                 if (snapshot.empty) {
-                    listaSolicitudesBody.innerHTML = '<tr><td colspan="9" class="text-center p-4 text-gray-500">No hay solicitudes que coincidan con los filtros.</td></tr>';
+                    listaSolicitudesBody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-gray-500">No hay solicitudes que coincidan con los filtros.</td></tr>';
                     calcularYMostrarEstadisticas();
                     return;
                 }
@@ -1506,13 +1509,15 @@ function loadJugadoresParaDropdown() {
                     }
                     
                     tr.innerHTML = `
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <input type="checkbox" class="solicitud-checkbox form-checkbox h-4 w-4" value="${solicitud.id}">
+                        </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${solicitud.nombreJugador || solicitud.jugadorId}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.marcaRaqueta} ${solicitud.modeloRaqueta || ''}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.tensionVertical || 'N/A'} / ${solicitud.tensionHorizontal || 'N/A'}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaSolicitud)}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaEntregaEstimada)}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaPago)}</td>
-						<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.precio != null ? solicitud.precio.toFixed(2) + '€' : '-'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.precio != null ? solicitud.precio.toFixed(2) + '€' : '-'}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${pagoClass}">${solicitud.estadoPago}</span>
                         </td>
@@ -1532,12 +1537,20 @@ function loadJugadoresParaDropdown() {
                     listaSolicitudesBody.appendChild(tr);
                 });
                 
+                // Manejar el evento de seleccionar todos
+                document.getElementById('selectAllSolicitudes').addEventListener('change', function() {
+                    const checkboxes = document.querySelectorAll('.solicitud-checkbox');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+                
                 calcularYMostrarEstadisticas();
             }, 
             (error) => {
                 console.error("Error cargando solicitudes:", error);
                 currentSolicitudesData = [];
-                listaSolicitudesBody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-500">Error al cargar: ${error.message}</td></tr>`;
+                listaSolicitudesBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-500">Error al cargar: ${error.message}</td></tr>`;
                 
                 if (error.code === 'failed-precondition') {
                     showModalMessage("Error: Puede necesitar crear un índice compuesto en Firestore para esta consulta.", "error");
@@ -1669,7 +1682,45 @@ function loadJugadoresParaDropdown() {
         );
     };
 
-    // --- IMPORTAR/EXPORTAR CSV ---
+    // --- FUNCIONALIDAD PARA SELECCIONAR Y ELIMINAR MULTIPLES SOLICITUDES ---
+    document.getElementById('selectAllSolicitudes').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.solicitud-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+
+    document.getElementById('btnDeleteSelected').addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.solicitud-checkbox:checked')).map(cb => cb.value);
+        
+        if (selectedIds.length === 0) {
+            showModalMessage("Por favor seleccione al menos una solicitud para eliminar.", "warning");
+            return;
+        }
+        
+        showConfirmModal(
+            `¿Está seguro de que desea eliminar las ${selectedIds.length} solicitudes seleccionadas? Esta acción no se puede deshacer.`, 
+            async () => {
+                if (!isAuthReady) return;
+                
+                try {
+                    const batch = writeBatch(db);
+                    
+                    selectedIds.forEach(id => {
+                        const docRef = doc(solicitudesCollectionRef, id);
+                        batch.delete(docRef);
+                    });
+                    
+                    await batch.commit();
+                    showModalMessage(`${selectedIds.length} solicitudes eliminadas correctamente.`, "success");
+                } catch (error) {
+                    showModalMessage(`Error al eliminar solicitudes: ${error.message}`, "error");
+                }
+            }
+        );
+    });
+
+     // --- IMPORTAR/EXPORTAR CSV ---
     const btnExportCsv = document.getElementById('btnExportCsv');
     const btnImportCsv = document.getElementById('btnImportCsv');
     const importFile = document.getElementById('importFile');
