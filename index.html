@@ -848,7 +848,8 @@
         } catch (error) {
             console.error("Error inicializando la aplicación:", error);
             document.getElementById('userIdDisplay').textContent = "Error de conexión";
-            showModalMessage("Error al iniciar la aplicación. Por favor recarga la página.", "error");
+            console.error("Error al iniciar la aplicación:", error);
+            showModalMessage("Error al iniciar la aplicación: " + (error.message || error), "error");
         }
     }
 
@@ -925,7 +926,7 @@
     }
 
     // Inicialización principal
-    async function initializeApp() {
+    async function iniciarAplicacion() {
         try {
             const user = await authenticateUser();
             if (user) {
