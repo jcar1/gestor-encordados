@@ -1,24 +1,8 @@
 body {
   font-family: 'Inter', sans-serif;
   background-color: #f3f4f6;
-  margin: 0;
-  padding: 0;
 }
 
-h1, h2 {
+h1 {
   color: #1f2937;
-}
-
-select, button {
-  font-size: 1rem;
-  outline: none;
-}
-
-button:focus {
-  ring: 2px;
-  ring-offset: 2px;
-}
-
-#resumenSolicitudes {
-  margin-top: 1rem;
 }
