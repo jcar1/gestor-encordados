@@ -1,14 +1,37 @@
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: #f3f4f6;
-  color: #1f2937;
-  margin: 0;
-  padding: 0;
+}
+.tab-button.active {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background-color: #eff6ff;
 }
 .modal {
-  z-index: 50;
+  display: none;
+  position: fixed;
+  z-index: 100;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+  align-items: center;
+  justify-content: center;
 }
 .modal-content {
-  max-width: 400px;
+  background-color: #fff;
   margin: auto;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 550px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.table-responsive {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
 }
