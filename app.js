@@ -414,7 +414,6 @@ formRegistrarJugador.addEventListener('submit', async (e) => {
         modeloRaqueta: formRegistrarJugador.jugadorModeloRaqueta.value.trim(),
         tensionVertical: parseFloat(formRegistrarJugador.jugadorTensionVertical.value) || null,
         tensionHorizontal: parseFloat(formRegistrarJugador.jugadorTensionHorizontal.value) || null,
-        fechaPago: parseDateInput(document.getElementById('editSolicitudFechaPago').value),
         tipoCuerda: formRegistrarJugador.jugadorTipoCuerda.value.trim()
     };
 
@@ -663,11 +662,11 @@ formNuevaSolicitud.addEventListener('submit', async (e) => {
         cuerdaIncluida: formNuevaSolicitud.cuerdaIncluida.checked,
         fechaSolicitud: parseDateInput(formNuevaSolicitud.fechaSolicitud.value),
         fechaEntregaEstimada: parseDateInput(formNuevaSolicitud.fechaEntregaEstimada.value),
-        fechaPago: parseDateInput(formNuevaSolicitud.fechaPago.value),
         precio: parseFloat(formNuevaSolicitud.precio.value) || 0,
         estadoPago: formNuevaSolicitud.estadoPago.value,
         estadoEntrega: "Pendiente",
-        notas: formNuevaSolicitud.notas.value.trim()
+        notas: formNuevaSolicitud.notas.value.trim(),
+        fechaPago: null // No hay fecha de pago inicialmente
     };
 
     // Validaciones
@@ -735,6 +734,8 @@ function loadSolicitudes() {
     const filtroEstadoEntregaVal = document.getElementById('filtroEstadoEntrega').value;
     const filtroFechaDesdeVal = document.getElementById('filtroFechaSolicitudDesde').value;
     const filtroFechaHastaVal = document.getElementById('filtroFechaSolicitudHasta').value;
+    const filtroFechaPagoDesdeVal = document.getElementById('filtroFechaPagoDesde').value;
+    const filtroFechaPagoHastaVal = document.getElementById('filtroFechaPagoHasta').value;
 
     if (filtroJugadorVal) conditions.push(where("jugadorId", "==", filtroJugadorVal));
     if (filtroEstadoPagoVal) conditions.push(where("estadoPago", "==", filtroEstadoPagoVal));
@@ -750,9 +751,19 @@ function loadSolicitudes() {
         conditions.push(where("fechaSolicitud", "<", Timestamp.fromDate(hastaDate)));
     }
     
+    if (filtroFechaPagoDesdeVal) {
+        conditions.push(where("fechaPago", ">=", Timestamp.fromDate(new Date(filtroFechaPagoDesdeVal))));
+    }
+    
+    if (filtroFechaPagoHastaVal) {
+        const hastaDate = new Date(filtroFechaPagoHastaVal);
+        hastaDate.setDate(hastaDate.getDate() + 1);
+        conditions.push(where("fechaPago", "<", Timestamp.fromDate(hastaDate)));
+    }
+    
     // Crear consulta
     let q;
-    if (filtroFechaDesdeVal || filtroFechaHastaVal) {
+    if (filtroFechaDesdeVal || filtroFechaHastaVal || filtroFechaPagoDesdeVal || filtroFechaPagoHastaVal) {
         q = query(
             solicitudesCollectionRef, 
             ...conditions, 
@@ -800,6 +811,9 @@ function loadSolicitudes() {
                     case 'Cancelado': entregaClass = 'bg-gray-400 text-white'; break;
                 }
                 
+                // Mostrar indicador de pago si tiene fecha de pago
+                const pagoIndicator = solicitud.fechaPago ? '<span class="paid-indicator"></span>' : '';
+                
                 tr.innerHTML = `
                     <td class="px-4 py-3 whitespace-nowrap">
                         <input type="checkbox" class="solicitud-checkbox form-checkbox h-4 w-4" value="${solicitud.id}">
@@ -811,7 +825,7 @@ function loadSolicitudes() {
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaEntregaEstimada)}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.precio != null ? solicitud.precio.toFixed(2) + '€' : '-'}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${pagoClass}">${solicitud.estadoPago}</span>
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${pagoClass}">${pagoIndicator}${solicitud.estadoPago}</span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm">
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${entregaClass}">${solicitud.estadoEntrega}</span>
@@ -904,6 +918,13 @@ window.openEditSolicitudModal = async (solicitudId) => {
             formEditSolicitud.editSolicitudEstadoEntrega.value = s.estadoEntrega;
             formEditSolicitud.editSolicitudNotas.value = s.notas || '';
             
+            // Manejar fecha de pago
+            if (s.fechaPago) {
+                formEditSolicitud.editSolicitudFechaPago.value = new Date(s.fechaPago.toDate()).toISOString().split('T')[0];
+            } else {
+                formEditSolicitud.editSolicitudFechaPago.value = '';
+            }
+            
             editSolicitudModal.style.display = 'flex';
         } else {
             showModalMessage("Solicitud no encontrada.", "error");
@@ -933,7 +954,8 @@ formEditSolicitud.addEventListener('submit', async (e) => {
         precio: formEditSolicitud.editSolicitudPrecio.value ? parseFloat(formEditSolicitud.editSolicitudPrecio.value) : null,
         estadoPago: formEditSolicitud.editSolicitudEstadoPago.value,
         estadoEntrega: formEditSolicitud.editSolicitudEstadoEntrega.value,
-        notas: formEditSolicitud.editSolicitudNotas.value.trim()
+        notas: formEditSolicitud.editSolicitudNotas.value.trim(),
+        fechaPago: parseDateInput(formEditSolicitud.editSolicitudFechaPago.value)
     };
 
     // Validaciones
@@ -957,6 +979,23 @@ formEditSolicitud.addEventListener('submit', async (e) => {
         showError('editFechaSolicitud', "Fecha no válida");
     }
 
+    // Validar que si hay fecha de pago, el estado sea Pagado
+    if (formData.fechaPago && formData.estadoPago !== 'Pagado') {
+        errors.push("Si hay fecha de pago, el estado debe ser 'Pagado'");
+        showError('editEstadoPago', "Debe ser 'Pagado' si hay fecha de pago");
+    }
+
+    // Validar que si no hay fecha de pago pero el estado es Pagado, establecer fecha actual
+    if (!formData.fechaPago && formData.estadoPago === 'Pagado') {
+        formData.fechaPago = new Date();
+    }
+
+    // Validar que la fecha de pago no sea anterior a la fecha de solicitud
+    if (formData.fechaPago && formData.fechaSolicitud && formData.fechaPago < formData.fechaSolicitud) {
+        errors.push("La fecha de pago no puede ser anterior a la fecha de solicitud");
+        showError('editFechaPago', "No puede ser anterior a la fecha de solicitud");
+    }
+
     if (errors.length > 0) {
         showModalMessage(errors.join("<br>"), "error");
         return;
@@ -969,6 +1008,7 @@ formEditSolicitud.addEventListener('submit', async (e) => {
             ...formData,
             fechaSolicitud: Timestamp.fromDate(formData.fechaSolicitud),
             fechaEntregaEstimada: formData.fechaEntregaEstimada ? Timestamp.fromDate(formData.fechaEntregaEstimada) : null,
+            fechaPago: formData.fechaPago ? Timestamp.fromDate(formData.fechaPago) : null,
             fechaUltimaActualizacion: Timestamp.now()
         });
         
@@ -1060,7 +1100,7 @@ btnExportCsv.addEventListener('click', () => {
         "id", "jugadorId", "nombreJugador", "marcaRaqueta", "modeloRaqueta", 
         "tensionVertical", "tensionHorizontal", "tipoCuerda", "cuerdaIncluida",
         "fechaSolicitud", "fechaEntregaEstimada", "precio", "estadoPago", 
-        "estadoEntrega", "notas", "fechaCreacion", "fechaUltimaActualizacion"
+        "estadoEntrega", "notas", "fechaCreacion", "fechaUltimaActualizacion", "fechaPago"
     ];
     
     let csvContent = headers.map(escapeCsvCell).join(",") + "\r\n";
@@ -1076,7 +1116,8 @@ btnExportCsv.addEventListener('click', () => {
             solicitud.precio, solicitud.estadoPago, 
             solicitud.estadoEntrega, solicitud.notas,
             formatDateForDisplay(solicitud.fechaCreacion), 
-            formatDateForDisplay(solicitud.fechaUltimaActualizacion)
+            formatDateForDisplay(solicitud.fechaUltimaActualizacion),
+            formatDateForDisplay(solicitud.fechaPago)
         ];
         
         csvContent += row.map(escapeCsvCell).join(",") + "\r\n";
@@ -1127,7 +1168,7 @@ btnImportCsv.addEventListener('click', async () => {
                 "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta", 
                 "tensionvertical", "tensionhorizontal", "tipocuerda", "cuerdaincluida",
                 "fechasolicitud", "fechaentregaestimada", "precio", "estadopago", 
-                "estadoentrega", "notas"
+                "estadoentrega", "notas", "fechapago"
             ];
             
             const actualHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
@@ -1138,9 +1179,9 @@ btnImportCsv.addEventListener('click', async () => {
             
             expectedHeaders.forEach(expHeader => {
                 const index = actualHeaders.indexOf(expHeader);
-                if (index === -1) {
+                if (index === -1 && expHeader !== "fechapago") {
                     missingHeaders.push(expHeader);
-                } else {
+                } else if (index !== -1) {
                     headerMap[expHeader] = index;
                 }
             });
@@ -1168,9 +1209,11 @@ btnImportCsv.addEventListener('click', async () => {
                     // Parsear fechas (formato dd/mm/aaaa)
                     const fechaSolicitudParts = values[headerMap["fechasolicitud"]].split('/');
                     const fechaEntregaParts = values[headerMap["fechaentregaestimada"]]?.split('/') || [];
+                    const fechaPagoParts = values[headerMap["fechapago"]]?.split('/') || [];
                     
                     let fechaSolicitud = null;
                     let fechaEntrega = null;
+                    let fechaPago = null;
                     
                     if (fechaSolicitudParts.length === 3) {
                         fechaSolicitud = new Date(
@@ -1185,6 +1228,14 @@ btnImportCsv.addEventListener('click', async () => {
                             parseInt(fechaEntregaParts[2]),
                             parseInt(fechaEntregaParts[1]) - 1,
                             parseInt(fechaEntregaParts[0])
+                        );
+                    }
+                    
+                    if (fechaPagoParts.length === 3) {
+                        fechaPago = new Date(
+                            parseInt(fechaPagoParts[2]),
+                            parseInt(fechaPagoParts[1]) - 1,
+                            parseInt(fechaPagoParts[0])
                         );
                     }
                     
@@ -1209,6 +1260,7 @@ btnImportCsv.addEventListener('click', async () => {
                         estadoPago: values[headerMap["estadopago"]] || "Pendiente",
                         estadoEntrega: values[headerMap["estadoentrega"]] || "Pendiente",
                         notas: values[headerMap["notas"]] || "",
+                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? Timestamp.fromDate(fechaPago) : null,
                         fechaCreacion: Timestamp.now(),
                         fechaUltimaActualizacion: Timestamp.now()
                     };
@@ -1217,6 +1269,11 @@ btnImportCsv.addEventListener('click', async () => {
                         errors.push(`Línea ${i+1}: Marca de raqueta es obligatoria`);
                         errorCount++;
                         continue;
+                    }
+                    
+                    // Validar que si hay fecha de pago, el estado sea Pagado
+                    if (solicitudData.fechaPago && solicitudData.estadoPago !== 'Pagado') {
+                        solicitudData.estadoPago = 'Pagado';
                     }
                     
                     const newSolicitudRef = doc(collection(db, `users/${userId}/solicitudes`));
@@ -1276,6 +1333,8 @@ document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
     document.getElementById('filtroEstadoEntrega').value = '';
     document.getElementById('filtroFechaSolicitudDesde').value = '';
     document.getElementById('filtroFechaSolicitudHasta').value = '';
+    document.getElementById('filtroFechaPagoDesde').value = '';
+    document.getElementById('filtroFechaPagoHasta').value = '';
     loadSolicitudes();
 });
 

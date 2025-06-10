@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Encordados de Raquetas v2.6.0</title>
+    <title>Gestor de Encordados de Raquetas v2.7.0</title>
     <link href="https://cdn.tailwindcss.com" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -107,10 +107,6 @@
                             </select>
                             <div id="error-estadoPago" class="error-message"></div>
                         </div>
-                        <div>
-                            <label for="solicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
-                            <input type="date" id="solicitudFechaPago" name="fechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                        </div>
                     </div>
                     <div>
                         <label for="solicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
@@ -130,7 +126,7 @@
                 
                 <div class="mb-6 p-4 bg-gray-50 rounded-lg shadow">
                     <h3 class="text-lg font-medium text-gray-800 mb-3">Filtrar Solicitudes:</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-end">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
                         <div>
                             <label for="filtroJugador" class="block text-sm font-medium text-gray-700 mb-1">Por Jugador:</label>
                             <select id="filtroJugador" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
@@ -164,12 +160,20 @@
                             <label for="filtroFechaSolicitudHasta" class="block text-sm font-medium text-gray-700 mb-1">F. Solicitud Hasta:</label>
                             <input type="date" id="filtroFechaSolicitudHasta" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
-                        <div class="col-span-1 sm:col-span-2 lg:col-span-1 xl:col-auto">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end mt-4">
+                        <div>
+                            <label for="filtroFechaPagoDesde" class="block text-sm font-medium text-gray-700 mb-1">F. Pago Desde:</label>
+                            <input type="date" id="filtroFechaPagoDesde" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="filtroFechaPagoHasta" class="block text-sm font-medium text-gray-700 mb-1">F. Pago Hasta:</label>
+                            <input type="date" id="filtroFechaPagoHasta" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="col-span-1 sm:col-span-2 lg:col-span-1 xl:col-span-3 flex items-end space-x-2">
                             <button id="btnAplicarFiltros" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
                                 <i class="fas fa-filter mr-1"></i>Aplicar
                             </button>
-                        </div>
-                        <div class="col-span-1 sm:col-span-2 lg:col-span-1 xl:col-auto">
                             <button id="btnLimpiarFiltros" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
                                 <i class="fas fa-times mr-1"></i>Limpiar
                             </button>
@@ -255,60 +259,52 @@
                 <p class="mb-4 text-sm text-gray-600">Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
                 
                 <!-- Tarjetas de resumen -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Solicitudes</h3>
-                        <p id="statTotalSolicitudes" class="text-3xl font-bold text-blue-600">0</p>
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <h3>Total Solicitudes</h3>
+                        <p id="statTotalSolicitudes" class="text-blue-600">0</p>
                     </div>
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Ingresos Totales</h3>
-                        <p id="statIngresosTotales" class="text-3xl font-bold text-green-600">0.00 €</p>
+                    <div class="stats-card">
+                        <h3>Ingresos Totales</h3>
+                        <p id="statIngresosTotales" class="text-green-600">0.00 €</p>
                     </div>
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Precio Promedio</h3>
-                        <p id="statPrecioPromedio" class="text-3xl font-bold text-indigo-600">0.00 €</p>
+                    <div class="stats-card">
+                        <h3>Precio Promedio</h3>
+                        <p id="statPrecioPromedio" class="text-indigo-600">0.00 €</p>
                     </div>
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-2">Solicitudes Hoy</h3>
-                        <p id="statSolicitudesHoy" class="text-3xl font-bold text-purple-600">0</p>
+                    <div class="stats-card">
+                        <h3>Solicitudes Hoy</h3>
+                        <p id="statSolicitudesHoy" class="text-purple-600">0</p>
                     </div>
                 </div>
                 
                 <!-- Gráficos principales -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div class="charts-grid">
                     <!-- Gráfico de estado de pago -->
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Estado de Pago</h3>
-                        <div class="chart-container">
-                            <canvas id="pagoChart"></canvas>
-                        </div>
+                    <div class="chart-card">
+                        <h3>Estado de Pago</h3>
+                        <canvas id="pagoChart"></canvas>
                     </div>
                     
                     <!-- Gráfico de estado de entrega -->
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Estado de Entrega</h3>
-                        <div class="chart-container">
-                            <canvas id="entregaChart"></canvas>
-                        </div>
+                    <div class="chart-card">
+                        <h3>Estado de Entrega</h3>
+                        <canvas id="entregaChart"></canvas>
                     </div>
                 </div>
                 
                 <!-- Gráficos secundarios -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="charts-grid mt-4">
                     <!-- Gráfico de ingresos mensuales -->
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Ingresos Mensuales</h3>
-                        <div class="chart-container">
-                            <canvas id="ingresosChart"></canvas>
-                        </div>
+                    <div class="chart-card">
+                        <h3>Ingresos Mensuales</h3>
+                        <canvas id="ingresosChart"></canvas>
                     </div>
                     
                     <!-- Gráfico de solicitudes por jugador -->
-                    <div class="stat-card">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Top 5 Jugadores</h3>
-                        <div class="chart-container">
-                            <canvas id="jugadoresChart"></canvas>
-                        </div>
+                    <div class="chart-card">
+                        <h3>Top 5 Jugadores</h3>
+                        <canvas id="jugadoresChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -556,21 +552,26 @@
                         </select>
                         <div id="error-editEstadoPago" class="error-message"></div>
                     </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="editSolicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
                         <input type="date" id="editSolicitudFechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
                     </div>
+                    <div>
+                        <label for="editSolicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado Entrega:</label>
+                        <select id="editSolicitudEstadoEntrega" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                            <option value="Pendiente">Pendiente de Iniciar</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Listo para Recoger">Listo para Recoger</option>
+                            <option value="Entregado">Entregado</option>
+                            <option value="Cancelado">Cancelado</option>
+                        </select>
+                        <div id="error-editEstadoEntrega" class="error-message"></div>
+                    </div>
                 </div>
-                <div>
-                    <label for="editSolicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado Entrega:</label>
-                    <select id="editSolicitudEstadoEntrega" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <option value="Pendiente">Pendiente de Iniciar</option>
-                        <option value="En Proceso">En Proceso</option>
-                        <option value="Listo para Recoger">Listo para Recoger</option>
-                        <option value="Entregado">Entregado</option>
-                        <option value="Cancelado">Cancelado</option>
-                    </select>
-                </div>
+                
                 <div>
                     <label for="editSolicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
                     <textarea id="editSolicitudNotas" rows="2" class="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea>
