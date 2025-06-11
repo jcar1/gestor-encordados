@@ -1275,6 +1275,12 @@ btnImportCsv.addEventListener('click', async () => {
                     const solicitudData = {
                         const codigoJugador = values[headerMap["jugadorid"]] || null;
 						const jugador = jugadoresData.find(j => j.codigo === codigoJugador);
+
+						const solicitudData = {
+							jugadorId: jugador ? jugador.id : null,
+							nombreJugador: jugador ? jugador.nombreCompleto : (values[headerMap["nombrejugador"]] || "N/A"),
+							marcaRaqueta: values[headerMap["marcaraqueta"]] || "",
+							modeloRaqueta: values[headerMap["modeloraqueta"]] || "",
 						const solicitudData = {
 							jugadorId: jugador ? jugador.id : null,
 							nombreJugador: jugador ? jugador.nombreCompleto : values[headerMap["nombrejugador"]] || "N/A",
