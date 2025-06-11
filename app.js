@@ -485,25 +485,32 @@ function loadJugadoresParaLista() {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors duration-150";
                 
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.nombreCompleto}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.telefono || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        ${jugador.marcaRaqueta || '-'} ${jugador.modeloRaqueta ? `(${jugador.modeloRaqueta})` : ''}
-                        ${jugador.tensionVertical ? `${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs` : ''}
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        <button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button onclick="confirmDeleteJugador('${jugador.id}', '${jugador.nombreCompleto.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </td>
-                `;
+               // En la función que carga jugadores para la lista
+			tr.innerHTML = `
+				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
+				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
+					${jugador.nombreCompleto}
+					<span class="block text-xs text-gray-500">${jugador.telefono || 'Sin teléfono'}</span>
+			</td>
+				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
+				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+			<div class="flex items-center">
+				${jugador.marcaRaqueta || '-'} 
+				${jugador.modeloRaqueta ? `<span class="ml-1 text-xs">(${jugador.modeloRaqueta})</span>` : ''}
+			</div>
+				${jugador.tensionVertical ? 
+            `<span class="text-xs bg-gray-100 px-2 py-1 rounded">${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs</span>` : ''}
+			</td>
+				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
+				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+			<button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
+				<i class="fas fa-edit"></i> Editar
+        </button>
+			<button onclick="confirmDeleteJugador('${jugador.id}', '${jugador.nombreCompleto.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
+				<i class="fas fa-trash"></i> Eliminar
+        </button>
+    </td>
+`;
                 
                 listaJugadoresBody.appendChild(tr);
             });
@@ -878,14 +885,28 @@ function loadSolicitudes() {
     );
 }
 
+// En la función actualizarResumenSolicitudes() en app.js
 function actualizarResumenSolicitudes() {
     const totalSolicitudes = currentSolicitudesData.length;
     const solicitudesPagadas = currentSolicitudesData.filter(s => s.estadoPago === 'Pagado').length;
     const solicitudesPendientes = totalSolicitudes - solicitudesPagadas;
     
+    // Calcular totales monetarios
+    const totalPagado = currentSolicitudesData
+        .filter(s => s.estadoPago === 'Pagado')
+        .reduce((sum, s) => sum + (s.precio || 0), 0);
+    
+    const totalPendiente = currentSolicitudesData
+        .filter(s => s.estadoPago !== 'Pagado')
+        .reduce((sum, s) => sum + (s.precio || 0), 0);
+    
+    const totalGeneral = currentSolicitudesData
+        .reduce((sum, s) => sum + (s.precio || 0), 0);
+    
     document.getElementById('resumenTotalSolicitudes').textContent = totalSolicitudes;
-    document.getElementById('resumenSolicitudesPagadas').textContent = solicitudesPagadas;
-    document.getElementById('resumenSolicitudesPendientes').textContent = solicitudesPendientes;
+    document.getElementById('resumenSolicitudesPagadas').textContent = `${solicitudesPagadas} (${totalPagado.toFixed(2)}€)`;
+    document.getElementById('resumenSolicitudesPendientes').textContent = `${solicitudesPendientes} (${totalPendiente.toFixed(2)}€)`;
+    document.getElementById('resumenTotalIngresos').textContent = totalGeneral.toFixed(2) + '€';
 }
 
 window.openEditSolicitudModal = async (solicitudId) => {
@@ -1339,6 +1360,7 @@ document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
 });
 
 // --- ESTADÍSTICAS ---
+// --- ESTADÍSTICAS ---
 function calcularYMostrarEstadisticas() {
     if (!isAuthReady) return;
     
@@ -1353,11 +1375,23 @@ function calcularYMostrarEstadisticas() {
         return fecha && fecha >= hoy;
     }).length;
     
+    // Nuevas métricas
+    const ingresosUltimos30Dias = currentSolicitudesData
+        .filter(s => {
+            const fecha = s.fechaSolicitud?.toDate();
+            return fecha && fecha >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        })
+        .reduce((sum, s) => sum + (s.precio || 0), 0);
+    
+    const promedioIngresosDiarios = ingresosUltimos30Dias / 30;
+    
     // Actualizar tarjetas
     document.getElementById('statTotalSolicitudes').textContent = totalSolicitudes;
     document.getElementById('statIngresosTotales').textContent = ingresosTotales.toFixed(2) + '€';
     document.getElementById('statPrecioPromedio').textContent = precioPromedio.toFixed(2) + '€';
     document.getElementById('statSolicitudesHoy').textContent = solicitudesHoy;
+    document.getElementById('statIngresos30Dias').textContent = ingresosUltimos30Dias.toFixed(2) + '€';
+    document.getElementById('statPromedioDiario').textContent = promedioIngresosDiarios.toFixed(2) + '€';
     
     // Actualizar gráficos
     actualizarGraficosEstadisticas();

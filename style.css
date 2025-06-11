@@ -246,3 +246,145 @@ input[type="file"]::file-selector-button:hover {
     color: #374151;
     margin-bottom: 1rem;
 }
+
+/* Mejoras para tarjetas */
+.stat-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15), 0 2px 4px -1px rgba(0,0,0,0.1);
+}
+
+.stat-card[class*="text-blue"] {
+    border-left-color: #3b82f6;
+}
+.stat-card[class*="text-green"] {
+    border-left-color: #10b981;
+}
+.stat-card[class*="text-yellow"] {
+    border-left-color: #f59e0b;
+}
+.stat-card[class*="text-purple"] {
+    border-left-color: #8b5cf6;
+}
+
+/* Mejoras para tablas */
+.table-responsive table {
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table-responsive th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 10;
+}
+
+.table-responsive tr {
+    transition: background-color 0.2s ease;
+}
+
+.table-responsive tr:hover {
+    background-color: #f3f4f6;
+}
+
+
+
+
+/* Mejoras para pestañas */
+.tab-button {
+    transition: all 0.2s ease;
+    margin-bottom: -1px;
+}
+
+.tab-button:hover:not(.active) {
+    border-color: #d1d5db;
+    background-color: #f9fafb;
+}
+
+.stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+    
+    .chart-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        height: 300px;
+    }
+
+/* Mejoras para modales */
+.modal-content {
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mejoras para gráficos */
+.chart-card {
+    position: relative;
+}
+
+.chart-card canvas {
+    max-height: 250px;
+    width: 100% !important;
+}
+
+/* Mejoras para formularios */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+/* Efecto de carga */
+.loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    color: transparent;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}

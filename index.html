@@ -234,25 +234,26 @@
                 </div>
 
                 <!-- Resumen de solicitudes -->
-                <div class="mt-6 p-4 bg-gray-50 rounded-lg shadow">
-                    <h3 class="text-lg font-medium text-gray-800 mb-3">Resumen de Solicitudes</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="stat-card">
-                            <h4 class="text-sm font-medium text-gray-700">Total Solicitudes</h4>
-                            <p id="resumenTotalSolicitudes" class="text-xl font-bold text-blue-600">0</p>
-                        </div>
-                        <div class="stat-card">
-                            <h4 class="text-sm font-medium text-gray-700">Pagadas</h4>
-                            <p id="resumenSolicitudesPagadas" class="text-xl font-bold text-green-600">0</p>
-                        </div>
-                        <div class="stat-card">
-                            <h4 class="text-sm font-medium text-gray-700">Pendientes</h4>
-                            <p id="resumenSolicitudesPendientes" class="text-xl font-bold text-yellow-600">0</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
+					<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Total Solicitudes</h4>
+							<p id="resumenTotalSolicitudes" class="text-xl font-bold text-blue-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Pagadas</h4>
+							<p id="resumenSolicitudesPagadas" class="text-xl font-bold text-green-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Pendientes</h4>
+							<p id="resumenSolicitudesPendientes" class="text-xl font-bold text-yellow-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Total Ingresos</h4>
+							<p id="resumenTotalIngresos" class="text-xl font-bold text-purple-600">0.00€</p>
+						</div>
+				  </div>
+        </div>
+</div>		
             <!-- Estadísticas Tab -->
             <div id="estadisticasTab" class="tab-content" style="display: none;">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Panel de Estadísticas</h2>
@@ -276,7 +277,15 @@
                         <h3>Solicitudes Hoy</h3>
                         <p id="statSolicitudesHoy" class="text-purple-600">0</p>
                     </div>
-                </div>
+					<div class="stats-card">
+						<h3>Ingresos últimos 30 días</h3>
+						<p id="statIngresos30Dias" class="text-purple-600">0.00 €</p>
+				   </div>
+					<div class="stats-card">
+						<h3>Promedio diario</h3>
+						<p id="statPromedioDiario" class="text-indigo-600">0.00 €</p>
+				    </div>
+				</div>
                 
                 <!-- Gráficos principales -->
                 <div class="charts-grid">
