@@ -744,7 +744,13 @@ function loadSolicitudes() {
     const filtroFechaPagoDesdeVal = document.getElementById('filtroFechaPagoDesde').value;
     const filtroFechaPagoHastaVal = document.getElementById('filtroFechaPagoHasta').value;
 
-    if (filtroJugadorVal) conditions.push(where("jugadorId", "==", filtroJugadorVal));
+    if (filtroJugadorVal) {
+		const jugadorSeleccionado = jugadoresData.find(j => j.id === filtroJugadorVal);
+    if (jugadorSeleccionado) {
+        conditions.push(where("nombreJugador", "==", jugadorSeleccionado.nombreCompleto));
+    }
+}
+	
     if (filtroEstadoPagoVal) conditions.push(where("estadoPago", "==", filtroEstadoPagoVal));
     if (filtroEstadoEntregaVal) conditions.push(where("estadoEntrega", "==", filtroEstadoEntregaVal));
     
@@ -1267,8 +1273,12 @@ btnImportCsv.addEventListener('click', async () => {
                     }
                     
                     const solicitudData = {
-                        jugadorId: values[headerMap["jugadorid"]] || null,
-                        nombreJugador: values[headerMap["nombrejugador"]] || "N/A",
+                        const codigoJugador = values[headerMap["jugadorid"]] || null;
+						const jugador = jugadoresData.find(j => j.codigo === codigoJugador);
+						const solicitudData = {
+							jugadorId: jugador ? jugador.id : null,
+							nombreJugador: jugador ? jugador.nombreCompleto : values[headerMap["nombrejugador"]] || "N/A",
+  						
                         marcaRaqueta: values[headerMap["marcaraqueta"]] || "",
                         modeloRaqueta: values[headerMap["modeloraqueta"]] || "",
                         tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
