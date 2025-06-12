@@ -485,32 +485,31 @@ function loadJugadoresParaLista() {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors duration-150";
                 
-               // En la función que carga jugadores para la lista
-			tr.innerHTML = `
-				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
-				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
-					${jugador.nombreCompleto}
-					<span class="block text-xs text-gray-500">${jugador.telefono || 'Sin teléfono'}</span>
-			</td>
-				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
-				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-			<div class="flex items-center">
-				${jugador.marcaRaqueta || '-'} 
-				${jugador.modeloRaqueta ? `<span class="ml-1 text-xs">(${jugador.modeloRaqueta})</span>` : ''}
-			</div>
-				${jugador.tensionVertical ? 
-            `<span class="text-xs bg-gray-100 px-2 py-1 rounded">${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs</span>` : ''}
-			</td>
-				<td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
-				<td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-			<button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
-				<i class="fas fa-edit"></i> Editar
-        </button>
-			<button onclick="confirmDeleteJugador('${jugador.id}', '${jugador.nombreCompleto.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
-				<i class="fas fa-trash"></i> Eliminar
-        </button>
-    </td>
-`;
+                tr.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
+                        ${jugador.nombreCompleto}
+                        <span class="block text-xs text-gray-500">${jugador.telefono || 'Sin teléfono'}</span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <div class="flex items-center">
+                            ${jugador.marcaRaqueta || '-'} 
+                            ${jugador.modeloRaqueta ? `<span class="ml-1 text-xs">(${jugador.modeloRaqueta})</span>` : ''}
+                        </div>
+                        ${jugador.tensionVertical ? 
+                            `<span class="text-xs bg-gray-100 px-2 py-1 rounded">${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs</span>` : ''}
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
+                        <button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <button onclick="confirmDeleteJugador('${jugador.id}', '${jugador.nombreCompleto.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </td>
+                `;
                 
                 listaJugadoresBody.appendChild(tr);
             });
@@ -744,13 +743,11 @@ function loadSolicitudes() {
     const filtroFechaPagoDesdeVal = document.getElementById('filtroFechaPagoDesde').value;
     const filtroFechaPagoHastaVal = document.getElementById('filtroFechaPagoHasta').value;
 
+    // Filtro por jugador - CORRECCIÓN PRINCIPAL
     if (filtroJugadorVal) {
-		const jugadorSeleccionado = jugadoresData.find(j => j.id === filtroJugadorVal);
-    if (jugadorSeleccionado) {
-        conditions.push(where("nombreJugador", "==", jugadorSeleccionado.nombreCompleto));
+        conditions.push(where("jugadorId", "==", filtroJugadorVal));
     }
-}
-	
+    
     if (filtroEstadoPagoVal) conditions.push(where("estadoPago", "==", filtroEstadoPagoVal));
     if (filtroEstadoEntregaVal) conditions.push(where("estadoEntrega", "==", filtroEstadoEntregaVal));
     
@@ -776,18 +773,16 @@ function loadSolicitudes() {
     
     // Crear consulta
     let q;
-    if (filtroFechaDesdeVal || filtroFechaHastaVal || filtroFechaPagoDesdeVal || filtroFechaPagoHastaVal) {
+    if (conditions.length > 0) {
         q = query(
             solicitudesCollectionRef, 
             ...conditions, 
-            orderBy("fechaSolicitud", "desc"), 
-            orderBy("fechaCreacion", "desc")
+            orderBy("fechaSolicitud", "desc")
         );
     } else {
         q = query(
             solicitudesCollectionRef, 
-            ...conditions, 
-            orderBy("fechaCreacion", "desc")
+            orderBy("fechaSolicitud", "desc")
         );
     }
 
@@ -1271,33 +1266,30 @@ btnImportCsv.addEventListener('click', async () => {
                         errorCount++;
                         continue;
                     }
-							
-				    // 1. Primero obtener el código del jugador del CSV
-const codigoJugador = values[headerMap["jugadorid"]]?.trim() || null;
-
-// 2. Buscar el jugador en los datos cargados
-const jugador = jugadoresData.find(j => j.codigo === codigoJugador);
-
-// 3. Crear el objeto de datos con validación
-const solicitudData = {
-    jugadorId: jugador?.id || null,
-    nombreJugador: jugador?.nombreCompleto || values[headerMap["nombrejugador"]]?.trim() || "N/A",
-    marcaRaqueta: values[headerMap["marcaraqueta"]]?.trim() || "",
-    modeloRaqueta: values[headerMap["modeloraqueta"]]?.trim() || "",
-    tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
-    tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
-    tipoCuerda: values[headerMap["tipocuerda"]] || "",
-    cuerdaIncluida: cuerdaIncluida,
-    fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
-    fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? Timestamp.fromDate(fechaEntrega) : null,
-    precio: parseFloat(values[headerMap["precio"]]) || null,
-    estadoPago: values[headerMap["estadopago"]] || "Pendiente",
-    estadoEntrega: values[headerMap["estadoentrega"]] || "Pendiente",
-    notas: values[headerMap["notas"]] || "",
-    fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? Timestamp.fromDate(fechaPago) : null,
-    fechaCreacion: Timestamp.now(),
-    fechaUltimaActualizacion: Timestamp.now()
-};
+                    
+                    // Obtener el ID del jugador del CSV
+                    const jugadorId = values[headerMap["jugadorid"]]?.trim() || null;
+                    
+                    // Crear el objeto de datos
+                    const solicitudData = {
+                        jugadorId: jugadorId,
+                        nombreJugador: values[headerMap["nombrejugador"]]?.trim() || "N/A",
+                        marcaRaqueta: values[headerMap["marcaraqueta"]]?.trim() || "",
+                        modeloRaqueta: values[headerMap["modeloraqueta"]]?.trim() || "",
+                        tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
+                        tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
+                        tipoCuerda: values[headerMap["tipocuerda"]] || "",
+                        cuerdaIncluida: cuerdaIncluida,
+                        fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
+                        fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? Timestamp.fromDate(fechaEntrega) : null,
+                        precio: parseFloat(values[headerMap["precio"]]) || null,
+                        estadoPago: values[headerMap["estadopago"]] || "Pendiente",
+                        estadoEntrega: values[headerMap["estadoentrega"]] || "Pendiente",
+                        notas: values[headerMap["notas"]] || "",
+                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? Timestamp.fromDate(fechaPago) : null,
+                        fechaCreacion: Timestamp.now(),
+                        fechaUltimaActualizacion: Timestamp.now()
+                    };
                     
                     if (!solicitudData.marcaRaqueta) {
                         errors.push(`Línea ${i+1}: Marca de raqueta es obligatoria`);
@@ -1372,7 +1364,6 @@ document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
     loadSolicitudes();
 });
 
-// --- ESTADÍSTICAS ---
 // --- ESTADÍSTICAS ---
 function calcularYMostrarEstadisticas() {
     if (!isAuthReady) return;
