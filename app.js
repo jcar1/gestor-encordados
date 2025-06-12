@@ -1273,21 +1273,30 @@ btnImportCsv.addEventListener('click', async () => {
                     }
                     
                     const solicitudData = {
-                        const codigoJugador = values[headerMap["jugadorid"]] || null;
-						const jugador = jugadoresData.find(j => j.codigo === codigoJugador);
-
-						const solicitudData = {
-							jugadorId: jugador ? jugador.id : null,
-							nombreJugador: jugador ? jugador.nombreCompleto : (values[headerMap["nombrejugador"]] || "N/A"),
-							marcaRaqueta: values[headerMap["marcaraqueta"]] || "",
-							modeloRaqueta: values[headerMap["modeloraqueta"]] || "",
-						const solicitudData = {
-							jugadorId: jugador ? jugador.id : null,
-							nombreJugador: jugador ? jugador.nombreCompleto : values[headerMap["nombrejugador"]] || "N/A",
-  						
-                        marcaRaqueta: values[headerMap["marcaraqueta"]] || "",
-                        modeloRaqueta: values[headerMap["modeloraqueta"]] || "",
-                        tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
+                        // 1. Primero obtener el código del jugador del CSV
+				const codigoJugador = values[headerMap["jugadorid"]]?.trim() || null;
+			// 2. Buscar el jugador en los datos cargados
+				const jugador = jugadoresData.find(j => j.codigo === codigoJugador);
+			// 3. Crear el objeto de datos con validación
+				const solicitudData = {
+			jugadorId: jugador?.id || null,
+			nombreJugador: jugador?.nombreCompleto || values[headerMap["nombrejugador"]]?.trim() || "N/A",
+			marcaRaqueta: values[headerMap["marcaraqueta"]]?.trim() || "",
+			modeloRaqueta: values[headerMap["modeloraqueta"]]?.trim() || "",
+			tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
+                        tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
+                        tipoCuerda: values[headerMap["tipocuerda"]] || "",
+                        cuerdaIncluida: cuerdaIncluida,
+                        fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
+                        fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? Timestamp.fromDate(fechaEntrega) : null,
+                        precio: parseFloat(values[headerMap["precio"]]) || null,
+                        estadoPago: values[headerMap["estadopago"]] || "Pendiente",
+                        estadoEntrega: values[headerMap["estadoentrega"]] || "Pendiente",
+                        notas: values[headerMap["notas"]] || "",
+                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? Timestamp.fromDate(fechaPago) : null,
+                        fechaCreacion: Timestamp.now(),
+                        fechaUltimaActualizacion: Timestamp.now()
+                    };
                         tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
                         tipoCuerda: values[headerMap["tipocuerda"]] || "",
                         cuerdaIncluida: cuerdaIncluida,
