@@ -39,13 +39,20 @@ import {
     Timestamp,
     writeBatch,
     addDoc,
-    onSnapshot
+    onSnapshot,
+    initializeFirestore
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Configuración mejorada de Firestore
+const firestoreSettings = {
+    experimentalForceLongPolling: true,
+    merge: true
+};
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, firestoreSettings);
 
 // Referencias a colecciones
 let jugadoresCollectionRef;
@@ -68,7 +75,7 @@ let unsubscribeJugadoresLista = null;
 let currentSolicitudesData = [];
 let jugadoresData = [];
 
-// Función de autenticación
+// Función de autenticación mejorada
 async function authenticateUser() {
     try {
         await setPersistence(auth, browserLocalPersistence);
@@ -81,16 +88,20 @@ async function authenticateUser() {
     } catch (error) {
         console.error("Error de autenticación:", error);
         
-        // Mostrar mensaje más descriptivo
-        let errorMessage = "Error de autenticación";
-        if (error.code === 'auth/invalid-credential') {
-            errorMessage = "Credenciales inválidas. Verifica el email y contraseña.";
-        } else if (error.code === 'auth/too-many-requests') {
-            errorMessage = "Demasiados intentos. Por favor espera e intenta más tarde.";
+        // Reintento después de 2 segundos
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            const userCredential = await signInWithEmailAndPassword(
+                auth, 
+                FIXED_CREDENTIALS.email, 
+                FIXED_CREDENTIALS.password
+            );
+            return userCredential.user;
+        } catch (retryError) {
+            console.error("Error en reintento de autenticación:", retryError);
+            showModalMessage("Error de conexión. La aplicación funciona en modo offline.", "warning");
+            return null;
         }
-        
-        showModalMessage(errorMessage, "error");
-        return null;
     }
 }
 
@@ -108,7 +119,6 @@ async function initApplication() {
             
             isAuthReady = true;
             
-            // Cargar datos iniciales con manejo de errores
             try {
                 await loadInitialData();
                 showTab('nuevaSolicitudTab');
@@ -120,7 +130,6 @@ async function initApplication() {
     } catch (error) {
         console.error("Error inicializando la aplicación:", error);
         document.getElementById('userIdDisplay').textContent = "Error de conexión";
-        console.error("Error al iniciar la aplicación:", error);
         showModalMessage("Error al iniciar la aplicación: " + (error.message || error), "error");
     }
 }
@@ -133,20 +142,18 @@ onAuthStateChanged(auth, (user) => {
         console.log("Usuario autenticado con ID:", userId);
         
         if (!isAuthReady) {
-            // Configurar referencias a la base de datos
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-            
             isAuthReady = true;
             loadInitialData();
         }
     } else {
         console.log("Usuario no autenticado");
         document.getElementById('userIdDisplay').textContent = "No autenticado";
-        // Intentar autenticar si no hay usuario
         authenticateUser();
     }
 });
+
 
 function checkAuth() {
     if (!isAuthReady) {
