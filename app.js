@@ -1195,7 +1195,7 @@ btnImportCsv.addEventListener('click', async () => {
                 "estadoentrega", "notas", "fechacreacion", "fechaultimaactualizacion", "fechapago"
             ];
             
-            const actualHeaders = lines[0].split('\t').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+            const actualHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
             
             // Verificar encabezados
             let missingHeaders = [];
