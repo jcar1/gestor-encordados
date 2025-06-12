@@ -1181,54 +1181,55 @@ btnImportCsv.addEventListener('click', async () => {
     reader.onload = async (event) => {
         try {
             const csvData = event.target.result;
-            const lines = csvData.split(/\r\n|\n/);
+            const lines = csvData.split(/\r\n|\n/).filter(line => line.trim() !== '');
             
             if (lines.length < 2) {
                 showModalMessage("El archivo CSV está vacío o no tiene datos.", "error");
                 return;
             }
             
+            // Definir encabezados esperados (en minúsculas y sin espacios)
             const expectedHeaders = [
-                "id", "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta", 
+                "id", "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta",
                 "tensionvertical", "tensionhorizontal", "tipocuerda", "cuerdaincluida",
-                "fechasolicitud", "fechaentregaestimada", "precio", "estadopago", 
+                "fechasolicitud", "fechaentregaestimada", "precio", "estadopago",
                 "estadoentrega", "notas", "fechacreacion", "fechaultimaactualizacion", "fechapago"
             ];
             
-            const actualHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+            // Procesar encabezados del CSV (usando comas como separador)
+            const actualHeaders = lines[0].split(',')
+                .map(h => h.trim().toLowerCase().replace(/"/g, '').replace(/\s+/g, ''));
             
-            // Verificar encabezados
-            let missingHeaders = [];
-            const headerMap = {};
-            
-            expectedHeaders.forEach(expHeader => {
-                const index = actualHeaders.indexOf(expHeader);
-                if (index === -1 && expHeader !== "fechapago") {
-                    missingHeaders.push(expHeader);
-                } else if (index !== -1) {
-                    headerMap[expHeader] = index;
-                }
-            });
+            // Verificar que todos los encabezados esperados estén presentes
+            const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
             
             if (missingHeaders.length > 0) {
                 showModalMessage(`Error: Faltan columnas en CSV: ${missingHeaders.join(", ")}`, "error");
                 return;
             }
             
+            // Crear mapa de índices de columnas
+            const headerMap = {};
+            actualHeaders.forEach((header, index) => {
+                headerMap[header] = index;
+            });
+            
             const batch = writeBatch(db);
             let importCount = 0;
             let errorCount = 0;
             const errors = [];
             
-            // Procesar cada línea
+            // Procesar cada línea (empezando desde la línea 1)
             for (let i = 1; i < lines.length; i++) {
                 if (lines[i].trim() === '') continue;
                 
                 try {
-                    const values = lines[i].split('\t').map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                    // Dividir por comas, manejando campos entre comillas
+                    const values = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+                        .map(v => v.trim().replace(/^"|"$/g, ''));
                     
                     // Convertir jugadorId a string
-                    const jugadorId = String(values[headerMap["jugadorid"]]?.trim()) || null;
+                    const jugadorId = values[headerMap["jugadorid"]]?.trim() || null;
                     
                     // Verificar si el jugador existe
                     if (jugadorId) {
@@ -1242,49 +1243,34 @@ btnImportCsv.addEventListener('click', async () => {
                         }
                     }
                     
+                    // Procesar campo booleano
                     const cuerdaIncluidaStr = String(values[headerMap["cuerdaincluida"]]).toLowerCase();
                     const cuerdaIncluida = cuerdaIncluidaStr === 'true' || cuerdaIncluidaStr === 'verdadero' || cuerdaIncluidaStr === '1';
                     
-                    // Parsear fechas (formato dd/mm/aaaa)
-                    const fechaSolicitudParts = values[headerMap["fechasolicitud"]].split('/');
-                    const fechaEntregaParts = values[headerMap["fechaentregaestimada"]]?.split('/') || [];
-                    const fechaPagoParts = values[headerMap["fechapago"]] === '-' ? [] : values[headerMap["fechapago"]]?.split('/') || [];
-                    
-                    let fechaSolicitud = null;
-                    let fechaEntrega = null;
-                    let fechaPago = null;
-                    
-                    if (fechaSolicitudParts.length === 3) {
-                        fechaSolicitud = new Date(
-                            parseInt(fechaSolicitudParts[2]),
-                            parseInt(fechaSolicitudParts[1]) - 1,
-                            parseInt(fechaSolicitudParts[0])
+                    // Función para parsear fechas (dd/mm/yyyy o d/m/yyyy)
+                    const parseDate = (dateStr) => {
+                        if (!dateStr || dateStr.trim() === '-' || dateStr.trim() === '') return null;
+                        const parts = dateStr.split('/');
+                        if (parts.length !== 3) return null;
+                        return new Date(
+                            parseInt(parts[2]),
+                            parseInt(parts[1]) - 1,
+                            parseInt(parts[0])
                         );
-                    }
+                    };
                     
-                    if (fechaEntregaParts.length === 3) {
-                        fechaEntrega = new Date(
-                            parseInt(fechaEntregaParts[2]),
-                            parseInt(fechaEntregaParts[1]) - 1,
-                            parseInt(fechaEntregaParts[0])
-                        );
-                    }
-                    
-                    if (fechaPagoParts.length === 3) {
-                        fechaPago = new Date(
-                            parseInt(fechaPagoParts[2]),
-                            parseInt(fechaPagoParts[1]) - 1,
-                            parseInt(fechaPagoParts[0])
-                        );
-                    }
+                    // Parsear fechas
+                    const fechaSolicitud = parseDate(values[headerMap["fechasolicitud"]]);
+                    const fechaEntrega = parseDate(values[headerMap["fechaentregaestimada"]]);
+                    const fechaPago = parseDate(values[headerMap["fechapago"]]);
                     
                     if (!fechaSolicitud || isNaN(fechaSolicitud.getTime())) {
-                        errors.push(`Línea ${i+1}: Fecha de solicitud inválida (dd/mm/aaaa)`);
+                        errors.push(`Línea ${i+1}: Fecha de solicitud inválida (formato dd/mm/yyyy)`);
                         errorCount++;
                         continue;
                     }
                     
-                    // Crear el objeto de datos
+                    // Crear objeto de datos para la solicitud
                     const solicitudData = {
                         jugadorId: jugadorId,
                         nombreJugador: values[headerMap["nombrejugador"]]?.trim() || "N/A",
@@ -1292,71 +1278,78 @@ btnImportCsv.addEventListener('click', async () => {
                         modeloRaqueta: values[headerMap["modeloraqueta"]]?.trim() || "",
                         tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
                         tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
-                        tipoCuerda: values[headerMap["tipocuerda"]] || "",
+                        tipoCuerda: values[headerMap["tipocuerda"]]?.trim() || "",
                         cuerdaIncluida: cuerdaIncluida,
                         fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
-                        fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? Timestamp.fromDate(fechaEntrega) : null,
+                        fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? 
+                            Timestamp.fromDate(fechaEntrega) : null,
                         precio: parseFloat(values[headerMap["precio"]]) || null,
-                        estadoPago: values[headerMap["estadopago"]] || "Pendiente",
-                        estadoEntrega: values[headerMap["estadoentrega"]] || "Pendiente",
-                        notas: values[headerMap["notas"]] || "",
-                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? Timestamp.fromDate(fechaPago) : null,
+                        estadoPago: values[headerMap["estadopago"]]?.trim() || "Pendiente",
+                        estadoEntrega: values[headerMap["estadoentrega"]]?.trim() || "Pendiente",
+                        notas: values[headerMap["notas"]]?.trim() || "",
+                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? 
+                            Timestamp.fromDate(fechaPago) : null,
                         fechaCreacion: Timestamp.now(),
                         fechaUltimaActualizacion: Timestamp.now()
                     };
                     
+                    // Validación mínima de datos requeridos
                     if (!solicitudData.marcaRaqueta) {
                         errors.push(`Línea ${i+1}: Marca de raqueta es obligatoria`);
                         errorCount++;
                         continue;
                     }
                     
-                    // Validar que si hay fecha de pago, el estado sea Pagado
+                    // Validar consistencia entre pago y fecha de pago
                     if (solicitudData.fechaPago && solicitudData.estadoPago !== 'Pagado') {
                         solicitudData.estadoPago = 'Pagado';
                     }
                     
+                    // Añadir a la operación batch
                     const newSolicitudRef = doc(collection(db, `users/${userId}/solicitudes`));
                     batch.set(newSolicitudRef, solicitudData);
                     importCount++;
+                    
                 } catch (parseError) {
                     console.error(`Error parseando línea ${i+1}:`, parseError);
-                    errors.push(`Línea ${i+1}: Error formato (${parseError.message})`);
+                    errors.push(`Línea ${i+1}: Error de formato - ${parseError.message}`);
                     errorCount++;
                 }
             }
             
+            // Ejecutar la operación batch si hay documentos para importar
             if (importCount > 0) {
                 try {
                     await batch.commit();
-                    let message = `${importCount} solicitudes importadas.`;
+                    let message = `${importCount} solicitudes importadas correctamente.`;
                     
                     if (errorCount > 0) {
-                        message += ` ${errorCount} no importadas.`;
+                        message += ` ${errorCount} errores (ver consola para detalles).`;
                     }
                     
                     showModalMessage(message, "success");
+                    console.log("Errores durante la importación:", errors);
                     
-                    if (errors.length > 0) {
-                        console.warn("Errores de importación:\n" + errors.join("\n"));
-                    }
-                    
-                    // Recargar las solicitudes después de importar
+                    // Recargar la lista de solicitudes
                     loadSolicitudes();
+                    
                 } catch (commitError) {
-                    console.error("Error guardando importados:", commitError);
-                    showModalMessage(`Error guardando: ${commitError.message}`, "error");
+                    console.error("Error al guardar los datos:", commitError);
+                    showModalMessage(`Error al guardar: ${commitError.message}`, "error");
                 }
-            } else if (errorCount > 0) {
-                showModalMessage(`${errorCount} solicitudes no importadas. Errores: ${errors.slice(0,3).join('; ')}... (ver consola)`, "error");
             } else {
-                showModalMessage("No se importaron nuevas solicitudes.", "info");
+                showModalMessage(
+                    errorCount > 0 ? 
+                    "No se importaron solicitudes debido a errores." : 
+                    "No se encontraron datos válidos para importar.",
+                    "warning"
+                );
             }
         } catch (error) {
             console.error("Error procesando CSV:", error);
-            showModalMessage(`Error al procesar el archivo CSV: ${error.message}`, "error");
+            showModalMessage(`Error al procesar el archivo: ${error.message}`, "error");
         } finally {
-            importFile.value = '';
+            importFile.value = ''; // Limpiar el input de archivo
         }
     };
     
