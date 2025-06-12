@@ -1162,6 +1162,8 @@ btnExportCsv.addEventListener('click', () => {
     }
 });
 
+// ... (todo el código anterior permanece igual hasta la función de importación CSV)
+
 btnImportCsv.addEventListener('click', async () => {
     if (!isAuthReady || !solicitudesCollectionRef) {
         showModalMessage("La base de datos no está lista o no está autenticado.", "error"); 
@@ -1187,13 +1189,13 @@ btnImportCsv.addEventListener('click', async () => {
             }
             
             const expectedHeaders = [
-                "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta", 
+                "id", "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta", 
                 "tensionvertical", "tensionhorizontal", "tipocuerda", "cuerdaincluida",
                 "fechasolicitud", "fechaentregaestimada", "precio", "estadopago", 
-                "estadoentrega", "notas", "fechapago"
+                "estadoentrega", "notas", "fechacreacion", "fechaultimaactualizacion", "fechapago"
             ];
             
-            const actualHeaders = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+            const actualHeaders = lines[0].split('\t').map(h => h.trim().toLowerCase().replace(/"/g, ''));
             
             // Verificar encabezados
             let missingHeaders = [];
@@ -1223,7 +1225,22 @@ btnImportCsv.addEventListener('click', async () => {
                 if (lines[i].trim() === '') continue;
                 
                 try {
-                    const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                    const values = lines[i].split('\t').map(v => v.trim().replace(/^"|"$/g, '').replace(/""/g, '"'));
+                    
+                    // Convertir jugadorId a string
+                    const jugadorId = String(values[headerMap["jugadorid"]]?.trim()) || null;
+                    
+                    // Verificar si el jugador existe
+                    if (jugadorId) {
+                        const jugadorRef = doc(db, `users/${userId}/jugadores`, jugadorId);
+                        const jugadorSnap = await getDoc(jugadorRef);
+                        
+                        if (!jugadorSnap.exists()) {
+                            errors.push(`Línea ${i+1}: Jugador con ID ${jugadorId} no encontrado`);
+                            errorCount++;
+                            continue;
+                        }
+                    }
                     
                     const cuerdaIncluidaStr = String(values[headerMap["cuerdaincluida"]]).toLowerCase();
                     const cuerdaIncluida = cuerdaIncluidaStr === 'true' || cuerdaIncluidaStr === 'verdadero' || cuerdaIncluidaStr === '1';
@@ -1231,7 +1248,7 @@ btnImportCsv.addEventListener('click', async () => {
                     // Parsear fechas (formato dd/mm/aaaa)
                     const fechaSolicitudParts = values[headerMap["fechasolicitud"]].split('/');
                     const fechaEntregaParts = values[headerMap["fechaentregaestimada"]]?.split('/') || [];
-                    const fechaPagoParts = values[headerMap["fechapago"]]?.split('/') || [];
+                    const fechaPagoParts = values[headerMap["fechapago"]] === '-' ? [] : values[headerMap["fechapago"]]?.split('/') || [];
                     
                     let fechaSolicitud = null;
                     let fechaEntrega = null;
@@ -1266,9 +1283,6 @@ btnImportCsv.addEventListener('click', async () => {
                         errorCount++;
                         continue;
                     }
-                    
-                    // Obtener el ID del jugador del CSV
-                    const jugadorId = values[headerMap["jugadorid"]]?.trim() || null;
                     
                     // Crear el objeto de datos
                     const solicitudData = {
@@ -1326,6 +1340,9 @@ btnImportCsv.addEventListener('click', async () => {
                     if (errors.length > 0) {
                         console.warn("Errores de importación:\n" + errors.join("\n"));
                     }
+                    
+                    // Recargar las solicitudes después de importar
+                    loadSolicitudes();
                 } catch (commitError) {
                     console.error("Error guardando importados:", commitError);
                     showModalMessage(`Error guardando: ${commitError.message}`, "error");
