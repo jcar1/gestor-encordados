@@ -1119,57 +1119,76 @@ function escapeCsvCell(cellData) {
     return stringData;
 }
 
-btnExportCsv.addEventListener('click', () => {
+btnExportCsv.addEventListener('click', async () => {
     if (!isAuthReady || currentSolicitudesData.length === 0) {
         showModalMessage("No hay datos de solicitudes para exportar o no está autenticado.", "warning");
         return;
     }
-    
+
+    // Obtener información de jugadores para mapear IDs a códigos
+    const jugadoresMap = {};
+    try {
+        const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
+        jugadoresSnapshot.forEach(doc => {
+            jugadoresMap[doc.id] = doc.data().codigo;
+        });
+    } catch (error) {
+        console.error("Error obteniendo datos de jugadores:", error);
+        showModalMessage("Error al obtener datos de jugadores para exportación", "error");
+        return;
+    }
+
     const headers = [
-        "id", "jugadorId", "nombreJugador", "marcaRaqueta", "modeloRaqueta", 
-        "tensionVertical", "tensionHorizontal", "tipoCuerda", "cuerdaIncluida",
-        "fechaSolicitud", "fechaEntregaEstimada", "precio", "estadoPago", 
-        "estadoEntrega", "notas", "fechaCreacion", "fechaUltimaActualizacion", "fechaPago"
+        "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
+        "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
+        "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
+        "Estado Entrega", "Notas", "Fecha Pago"
     ];
-    
+
     let csvContent = headers.map(escapeCsvCell).join(",") + "\r\n";
-    
+
     currentSolicitudesData.forEach(solicitud => {
+        const codigoJugador = jugadoresMap[solicitud.jugadorId] || solicitud.jugadorId;
+
         const row = [
-            solicitud.id, solicitud.jugadorId, solicitud.nombreJugador, 
-            solicitud.marcaRaqueta, solicitud.modeloRaqueta,
-            solicitud.tensionVertical, solicitud.tensionHorizontal, 
-            solicitud.tipoCuerda, solicitud.cuerdaIncluida,
+            codigoJugador,
+            solicitud.nombreJugador,
+            solicitud.marcaRaqueta,
+            solicitud.modeloRaqueta,
+            solicitud.tensionVertical,
+            solicitud.tensionHorizontal,
+            solicitud.tipoCuerda,
+            solicitud.cuerdaIncluida ? "Sí" : "No",
             formatDateForDisplay(solicitud.fechaSolicitud),
             formatDateForDisplay(solicitud.fechaEntregaEstimada),
-            solicitud.precio, solicitud.estadoPago, 
-            solicitud.estadoEntrega, solicitud.notas,
-            formatDateForDisplay(solicitud.fechaCreacion), 
-            formatDateForDisplay(solicitud.fechaUltimaActualizacion),
+            solicitud.precio,
+            solicitud.estadoPago,
+            solicitud.estadoEntrega,
+            solicitud.notas,
             formatDateForDisplay(solicitud.fechaPago)
         ];
-        
+
         csvContent += row.map(escapeCsvCell).join(",") + "\r\n";
     });
-    
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", `solicitudes_encordado_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showModalMessage("Datos exportados a CSV.", "success");
-    } else {
-        showModalMessage("La exportación CSV no es compatible con su navegador.", "error");
-    }
-});
 
-// ... (todo el código anterior permanece igual hasta la función de importación CSV)
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // Crear enlace de descarga
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `solicitudes_encordado_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Limpiar
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 100);
+
+    showModalMessage("Datos exportados a CSV correctamente.", "success");
+});
 
 btnImportCsv.addEventListener('click', async () => {
     if (!isAuthReady || !solicitudesCollectionRef) {
@@ -1195,17 +1214,17 @@ btnImportCsv.addEventListener('click', async () => {
                 return;
             }
             
-            // Definir encabezados esperados (en minúsculas y sin espacios)
+            // Definir encabezados esperados
             const expectedHeaders = [
-                "id", "jugadorid", "nombrejugador", "marcaraqueta", "modeloraqueta",
-                "tensionvertical", "tensionhorizontal", "tipocuerda", "cuerdaincluida",
-                "fechasolicitud", "fechaentregaestimada", "precio", "estadopago",
-                "estadoentrega", "notas", "fechacreacion", "fechaultimaactualizacion", "fechapago"
+                "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
+                "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
+                "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
+                "Estado Entrega", "Notas", "Fecha Pago"
             ];
             
-            // Procesar encabezados del CSV (usando comas como separador)
+            // Procesar encabezados del CSV
             const actualHeaders = lines[0].split(',')
-                .map(h => h.trim().toLowerCase().replace(/"/g, '').replace(/\s+/g, ''));
+                .map(h => h.trim().replace(/"/g, ''));
             
             // Verificar que todos los encabezados esperados estén presentes
             const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
@@ -1219,6 +1238,13 @@ btnImportCsv.addEventListener('click', async () => {
             const headerMap = {};
             actualHeaders.forEach((header, index) => {
                 headerMap[header] = index;
+            });
+            
+            // Obtener mapa de códigos de jugador a IDs
+            const codigoToIdMap = {};
+            const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
+            jugadoresSnapshot.forEach(doc => {
+                codigoToIdMap[doc.data().codigo] = doc.id;
             });
             
             const batch = writeBatch(db);
@@ -1235,24 +1261,19 @@ btnImportCsv.addEventListener('click', async () => {
                     const values = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
                         .map(v => v.trim().replace(/^"|"$/g, ''));
                     
-                    // Convertir jugadorId a string
-                    const jugadorId = values[headerMap["jugadorid"]]?.trim() || null;
+                    // Obtener ID de jugador usando el código
+                    const codigoJugador = values[headerMap["Código Jugador"]]?.trim();
+                    const jugadorId = codigoToIdMap[codigoJugador];
                     
-                    // Verificar si el jugador existe
-                    if (jugadorId) {
-                        const jugadorRef = doc(db, `users/${userId}/jugadores`, jugadorId);
-                        const jugadorSnap = await getDoc(jugadorRef);
-                        
-                        if (!jugadorSnap.exists()) {
-                            errors.push(`Línea ${i+1}: Jugador con ID ${jugadorId} no encontrado`);
-                            errorCount++;
-                            continue;
-                        }
+                    if (!jugadorId) {
+                        errors.push(`Línea ${i+1}: No se encontró jugador con código ${codigoJugador}`);
+                        errorCount++;
+                        continue;
                     }
                     
                     // Procesar campo booleano
-                    const cuerdaIncluidaStr = String(values[headerMap["cuerdaincluida"]]).toLowerCase();
-                    const cuerdaIncluida = cuerdaIncluidaStr === 'true' || cuerdaIncluidaStr === 'verdadero' || cuerdaIncluidaStr === '1';
+                    const cuerdaIncluidaStr = String(values[headerMap["Cuerda Incluida"]]).toLowerCase();
+                    const cuerdaIncluida = cuerdaIncluidaStr === 'sí' || cuerdaIncluidaStr === 'si' || cuerdaIncluidaStr === 'true' || cuerdaIncluidaStr === '1';
                     
                     // Función para parsear fechas (dd/mm/yyyy o d/m/yyyy)
                     const parseDate = (dateStr) => {
@@ -1267,9 +1288,9 @@ btnImportCsv.addEventListener('click', async () => {
                     };
                     
                     // Parsear fechas
-                    const fechaSolicitud = parseDate(values[headerMap["fechasolicitud"]]);
-                    const fechaEntrega = parseDate(values[headerMap["fechaentregaestimada"]]);
-                    const fechaPago = parseDate(values[headerMap["fechapago"]]);
+                    const fechaSolicitud = parseDate(values[headerMap["Fecha Solicitud"]]);
+                    const fechaEntrega = parseDate(values[headerMap["Fecha Entrega Estimada"]]);
+                    const fechaPago = parseDate(values[headerMap["Fecha Pago"]]);
                     
                     if (!fechaSolicitud || isNaN(fechaSolicitud.getTime())) {
                         errors.push(`Línea ${i+1}: Fecha de solicitud inválida (formato dd/mm/yyyy)`);
@@ -1280,20 +1301,20 @@ btnImportCsv.addEventListener('click', async () => {
                     // Crear objeto de datos para la solicitud
                     const solicitudData = {
                         jugadorId: jugadorId,
-                        nombreJugador: values[headerMap["nombrejugador"]]?.trim() || "N/A",
-                        marcaRaqueta: values[headerMap["marcaraqueta"]]?.trim() || "",
-                        modeloRaqueta: values[headerMap["modeloraqueta"]]?.trim() || "",
-                        tensionVertical: parseFloat(values[headerMap["tensionvertical"]]) || null,
-                        tensionHorizontal: parseFloat(values[headerMap["tensionhorizontal"]]) || null,
-                        tipoCuerda: values[headerMap["tipocuerda"]]?.trim() || "",
+                        nombreJugador: values[headerMap["Nombre Jugador"]]?.trim() || "N/A",
+                        marcaRaqueta: values[headerMap["Marca Raqueta"]]?.trim() || "",
+                        modeloRaqueta: values[headerMap["Modelo Raqueta"]]?.trim() || "",
+                        tensionVertical: parseFloat(values[headerMap["Tensión Vertical"]]) || null,
+                        tensionHorizontal: parseFloat(values[headerMap["Tensión Horizontal"]]) || null,
+                        tipoCuerda: values[headerMap["Tipo Cuerda"]]?.trim() || "",
                         cuerdaIncluida: cuerdaIncluida,
                         fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
                         fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? 
                             Timestamp.fromDate(fechaEntrega) : null,
-                        precio: parseFloat(values[headerMap["precio"]]) || null,
-                        estadoPago: values[headerMap["estadopago"]]?.trim() || "Pendiente",
-                        estadoEntrega: values[headerMap["estadoentrega"]]?.trim() || "Pendiente",
-                        notas: values[headerMap["notas"]]?.trim() || "",
+                        precio: parseFloat(values[headerMap["Precio"]]) || null,
+                        estadoPago: values[headerMap["Estado Pago"]]?.trim() || "Pendiente",
+                        estadoEntrega: values[headerMap["Estado Entrega"]]?.trim() || "Pendiente",
+                        notas: values[headerMap["Notas"]]?.trim() || "",
                         fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? 
                             Timestamp.fromDate(fechaPago) : null,
                         fechaCreacion: Timestamp.now(),
