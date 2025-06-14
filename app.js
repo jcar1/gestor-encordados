@@ -1105,20 +1105,7 @@ document.getElementById('btnDeleteSelected').addEventListener('click', function(
     );
 });
 
-// --- IMPORTAR/EXPORTAR CSV ---
-const btnExportCsv = document.getElementById('btnExportCsv');
-const btnImportCsv = document.getElementById('btnImportCsv');
-const importFile = document.getElementById('importFile');
-
-function escapeCsvCell(cellData) {
-    if (cellData == null) return '';
-    const stringData = String(cellData);
-    if (stringData.includes(',') || stringData.includes('"') || stringData.includes('\n') || stringData.includes('\r')) {
-        return `"${stringData.replace(/"/g, '""')}"`;
-    }
-    return stringData;
-}
-
+// --- FUNCIONALIDAD PARA EXPORTAR CSV ---
 btnExportCsv.addEventListener('click', async () => {
     if (!isAuthReady || currentSolicitudesData.length === 0) {
         showModalMessage("No hay datos de solicitudes para exportar o no está autenticado.", "warning");
@@ -1190,6 +1177,7 @@ btnExportCsv.addEventListener('click', async () => {
     showModalMessage("Datos exportados a CSV correctamente.", "success");
 });
 
+// --- FUNCIONALIDAD PARA IMPORTAR CSV ---
 btnImportCsv.addEventListener('click', async () => {
     if (!isAuthReady || !solicitudesCollectionRef) {
         showModalMessage("La base de datos no está lista o no está autenticado.", "error"); 
@@ -1380,6 +1368,17 @@ btnImportCsv.addEventListener('click', async () => {
             importFile.value = ''; // Limpiar el input de archivo
         }
     };
+    
+    reader.onerror = () => {
+        showModalMessage("Error al leer el archivo.", "error");
+        importFile.value = '';
+    };
+    
+    reader.readAsText(file);
+});
+
+
+
     
     reader.onerror = () => {
         showModalMessage("Error al leer el archivo.", "error");
