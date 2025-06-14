@@ -1377,17 +1377,6 @@ btnImportCsv.addEventListener('click', async () => {
     reader.readAsText(file);
 });
 
-
-
-    
-    reader.onerror = () => {
-        showModalMessage("Error al leer el archivo.", "error");
-        importFile.value = '';
-    };
-    
-    reader.readAsText(file);
-});
-
 // --- EVENT LISTENERS PARA FILTROS ---
 document.getElementById('btnAplicarFiltros').addEventListener('click', loadSolicitudes);
 document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
