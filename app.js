@@ -154,7 +154,6 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-
 function checkAuth() {
     if (!isAuthReady) {
         showModalMessage("La aplicación no está autenticada correctamente", "error");
@@ -167,7 +166,10 @@ function checkAuth() {
 function formatDateForDisplay(timestamp) {
     if (!timestamp || !timestamp.toDate) return '-';
     const date = timestamp.toDate();
-    return date.toLocaleDateString('es-ES');
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 function parseDateInput(dateStr) {
@@ -893,7 +895,6 @@ function loadSolicitudes() {
     );
 }
 
-// En la función actualizarResumenSolicitudes() en app.js
 function actualizarResumenSolicitudes() {
     const totalSolicitudes = currentSolicitudesData.length;
     const solicitudesPagadas = currentSolicitudesData.filter(s => s.estadoPago === 'Pagado').length;
@@ -1106,6 +1107,15 @@ document.getElementById('btnDeleteSelected').addEventListener('click', function(
 });
 
 // --- FUNCIONALIDAD PARA EXPORTAR CSV ---
+function escapeCsvCell(cellData) {
+    if (cellData == null) return '';
+    const stringData = String(cellData);
+    if (stringData.includes(',') || stringData.includes('"') || stringData.includes('\n') || stringData.includes('\r')) {
+        return `"${stringData.replace(/"/g, '""')}"`;
+    }
+    return stringData;
+}
+
 btnExportCsv.addEventListener('click', async () => {
     if (!isAuthReady || currentSolicitudesData.length === 0) {
         showModalMessage("No hay datos de solicitudes para exportar o no está autenticado.", "warning");
