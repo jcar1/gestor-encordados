@@ -1623,7 +1623,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initApplication();
 });
 
-// --- MEJORA EN IMPORTACIÓN CSV ---
+// --- FUNCIÓN ORIGINAL IMPORTACIÓN REEMPLAZADA ---
 function importarCSV(csvText) {
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
@@ -1709,6 +1709,135 @@ function importarCSV(csvText) {
         }).catch(err => {
             showModalMessage(`Error al guardar las solicitudes: ${err.message}`, 'error');
         });
+    }
+}
+
+function parseFechaCSV(fechaStr) {
+    if (!fechaStr) return null;
+    const [dia, mes, anio] = fechaStr.split('/');
+    const date = new Date(`${anio}-${mes}-${dia}`);
+    return isNaN(date) ? null : date;
+}
+
+document.getElementById('btnImportCsv').addEventListener('click', () => {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        showModalMessage("Seleccione un archivo CSV para importar.", "warning");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const csvText = e.target.result;
+        importarCSV(csvText);
+    };
+    reader.readAsText(file);
+});
+
+// --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
+
+async function importarCSV(csvText) {
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const expectedHeaders = [
+        "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
+        "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
+        "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
+        "Estado Entrega", "Notas", "Fecha Pago"
+    ];
+
+    if (headers.join(',') !== expectedHeaders.join(',')) {
+        showModalMessage("Error: El encabezado del CSV no coincide con el formato esperado.", "error");
+        return;
+    }
+
+    const nuevasSolicitudes = [];
+    const errores = [];
+    const jugadoresNuevos = new Map();
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length !== expectedHeaders.length) {
+            errores.push(`Línea ${i + 1}: Número de columnas incorrecto.`);
+            continue;
+        }
+
+        const [
+            codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
+            tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
+            fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
+            estadoEntrega, notas, fechaPago
+        ] = values;
+
+        let jugador = jugadoresData.find(j => j.codigo.toString() === codigoJugador);
+
+        if (!jugador && !jugadoresNuevos.has(codigoJugador)) {
+            const nuevoDocRef = doc(collection(db, `users/${userId}/jugadores`));
+            const nuevoJugador = {
+                id: nuevoDocRef.id,
+                codigo: parseInt(codigoJugador),
+                nombreCompleto: nombreJugador,
+                marcaRaqueta,
+                modeloRaqueta,
+                tensionVertical: parseFloat(tensionVertical) || 0,
+                tensionHorizontal: parseFloat(tensionHorizontal) || 0,
+                tipoCuerda: tipoCuerda || "",
+                fechaRegistro: Timestamp.now(),
+                fechaUltimaActualizacion: Timestamp.now()
+            };
+            jugadoresNuevos.set(codigoJugador, nuevoJugador);
+            jugadoresData.push(nuevoJugador);
+            await setDoc(nuevoDocRef, nuevoJugador);
+            jugador = nuevoJugador;
+        } else if (!jugador) {
+            jugador = jugadoresNuevos.get(codigoJugador);
+        }
+
+        const fechaSolicitudDate = parseFechaCSV(fechaSolicitud);
+        const fechaEntregaEstimadaDate = parseFechaCSV(fechaEntregaEstimada);
+        const fechaPagoDate = parseFechaCSV(fechaPago);
+
+        if (!marcaRaqueta || isNaN(parseFloat(tensionVertical)) || isNaN(parseFloat(tensionHorizontal)) || !fechaSolicitudDate) {
+            errores.push(`Línea ${i + 1}: Datos obligatorios faltantes o incorrectos.`);
+            continue;
+        }
+
+        nuevasSolicitudes.push({
+            jugadorId: jugador.id,
+            nombreJugador,
+            marcaRaqueta,
+            modeloRaqueta,
+            tensionVertical: parseFloat(tensionVertical),
+            tensionHorizontal: parseFloat(tensionHorizontal),
+            tipoCuerda,
+            cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí',
+            fechaSolicitud: Timestamp.fromDate(fechaSolicitudDate),
+            fechaEntregaEstimada: fechaEntregaEstimadaDate ? Timestamp.fromDate(fechaEntregaEstimadaDate) : null,
+            fechaPago: fechaPagoDate ? Timestamp.fromDate(fechaPagoDate) : null,
+            precio: parseFloat(precio) || 0,
+            estadoPago,
+            estadoEntrega: estadoEntrega || "Pendiente",
+            notas,
+            fechaCreacion: Timestamp.now(),
+            fechaUltimaActualizacion: Timestamp.now()
+        });
+    }
+
+    if (errores.length > 0) {
+        showModalMessage(`Errores durante la importación:<br>${errores.join('<br>')}`, 'warning');
+    }
+
+    if (nuevasSolicitudes.length > 0) {
+        const batch = writeBatch(db);
+        nuevasSolicitudes.forEach(data => {
+            const docRef = doc(collection(db, `users/${userId}/solicitudes`));
+            batch.set(docRef, data);
+        });
+
+        await batch.commit();
+        showModalMessage(`Importación completada: ${nuevasSolicitudes.length} solicitudes agregadas.`, 'success');
+        loadSolicitudes();
     }
 }
 
