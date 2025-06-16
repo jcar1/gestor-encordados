@@ -1698,10 +1698,7 @@ async function importarCSV(csvText) {
             jugador = jugadoresNuevos.get(codigoJugador);
         }
 
-        const fechaSolicitudDate = parseFechaCSV(fechaSolicitud);
-        const fechaEntregaEstimadaDate = parseFechaCSV(fechaEntregaEstimada);
-        const fechaPagoDate = parseFechaCSV(fechaPago);
-
+      
         if (!marcaRaqueta || isNaN(parseFloat(tensionVertical)) || isNaN(parseFloat(tensionHorizontal)) || !fechaSolicitudDate) {
             errores.push(`Línea ${i + 1}: Datos obligatorios faltantes o incorrectos.`);
             continue;
