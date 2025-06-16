@@ -1623,13 +1623,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initApplication();
 });
 
-function parseFechaCSV(fechaStr) {
-    if (!fechaStr) return null;
-    const [dia, mes, anio] = fechaStr.split('/');
-    const date = new Date(`${anio}-${mes}-${dia}`);
-    return isNaN(date) ? null : date;
-}
-
 document.getElementById('btnImportCsv').addEventListener('click', () => {
     const fileInput = document.getElementById('importFile');
     const file = fileInput.files[0];
