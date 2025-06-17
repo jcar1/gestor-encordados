@@ -76,6 +76,7 @@ let currentSolicitudesData = [];
 let jugadoresData = [];
 
 // Función de autenticación mejorada
+
 async function authenticateUser() {
     try {
         await setPersistence(auth, browserLocalPersistence);
@@ -88,7 +89,7 @@ async function authenticateUser() {
     } catch (error) {
         console.error("Error de autenticación:", error);
         
-        // Reintento después de 2 segundos
+        // Reintento después de 2 segundos - SIN PARÉNTESIS EXTRA
         await new Promise(resolve => setTimeout(resolve, 2000));
         try {
             const userCredential = await signInWithEmailAndPassword(
@@ -1816,7 +1817,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (headers.join(',') !== expectedHeaders.join(',')) {
         showModalMessage("Error: El encabezado del CSV no coincide con el formato esperado.", "error");
-        }
+        return;
+    }
 
     const nuevasSolicitudes = [];
     const errores = [];
