@@ -1903,7 +1903,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showModalMessage(`Importación completada: ${nuevasSolicitudes.length} solicitudes agregadas.`, 'success');
         loadSolicitudes();
     }
-
 function parseFechaCSV(fechaStr) {
     if (!fechaStr) return null;
     const [dia, mes, anio] = fechaStr.split('/');
