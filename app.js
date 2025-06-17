@@ -1817,7 +1817,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (headers.join(',') !== expectedHeaders.join(',')) {
         showModalMessage("Error: El encabezado del CSV no coincide con el formato esperado.", "error");
-        return;
+        
     }
 
     const nuevasSolicitudes = [];
