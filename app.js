@@ -1640,8 +1640,171 @@ document.getElementById('btnImportCsv').addEventListener('click', () => {
 });
 
 // --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
+// In app.js, replace the current importarCSV function with this improved version:
 
-async function importarCSV(csvText) {
+async function importarCSV(csvText, type = 'solicitudes') {
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(/[,;]/).map(h => h.trim());
+    
+    try {
+        if (type === 'jugadores') {
+            // Import players
+            const batch = writeBatch(db);
+            const jugadoresToImport = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                
+                const values = lines[i].split(/[,;]/).map(v => v.trim());
+                const [codigo, nombreCompleto] = values;
+                
+                if (!codigo || !nombreCompleto) continue;
+                
+                const jugadorData = {
+                    codigo,
+                    nombreCompleto,
+                    fechaRegistro: Timestamp.now(),
+                    fechaUltimaActualizacion: Timestamp.now()
+                };
+                
+                const newDocRef = doc(jugadoresCollectionRef);
+                batch.set(newDocRef, jugadorData);
+                jugadoresToImport.push(jugadorData);
+            }
+            
+            await batch.commit();
+            showModalMessage(`${jugadoresToImport.length} jugadores importados correctamente`, 'success');
+            loadJugadoresParaDropdown();
+            loadJugadoresParaFiltros();
+            loadJugadoresParaLista();
+            
+        } else if (type === 'solicitudes') {
+            // Import stringing requests
+            const batch = writeBatch(db);
+            const solicitudesToImport = [];
+            const jugadoresMap = {};
+            
+            // First get all players to map codes to IDs
+            const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
+            jugadoresSnapshot.forEach(doc => {
+                jugadoresMap[doc.data().codigo] = doc.id;
+            });
+            
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue;
+                
+                const values = lines[i].split(/[,;]/).map(v => v.trim());
+                if (values.length < headers.length) continue;
+                
+                const [
+                    codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
+                    tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
+                    fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
+                    estadoEntrega, notas, fechaPago
+                ] = values;
+                
+                const jugadorId = jugadoresMap[codigoJugador];
+                if (!jugadorId) {
+                    console.warn(`Jugador con código ${codigoJugador} no encontrado`);
+                    continue;
+                }
+                
+                // Parse dates (dd/mm/yyyy format)
+                const parseDate = (dateStr) => {
+                    if (!dateStr || dateStr === '') return null;
+                    const [day, month, year] = dateStr.split('/');
+                    return new Date(year, month - 1, day);
+                };
+                
+                const solicitudData = {
+                    jugadorId,
+                    nombreJugador,
+                    marcaRaqueta: marcaRaqueta || '',
+                    modeloRaqueta: modeloRaqueta || '',
+                    tensionVertical: parseFloat(tensionVertical) || 0,
+                    tensionHorizontal: parseFloat(tensionHorizontal) || 0,
+                    tipoCuerda: tipoCuerda || '',
+                    cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí' || cuerdaIncluida.toLowerCase() === 'si',
+                    fechaSolicitud: Timestamp.fromDate(parseDate(fechaSolicitud)),
+                    fechaEntregaEstimada: fechaEntregaEstimada ? Timestamp.fromDate(parseDate(fechaEntregaEstimada)) : null,
+                    precio: parseFloat(precio) || 0,
+                    estadoPago: estadoPago || 'Pendiente',
+                    estadoEntrega: estadoEntrega || 'Pendiente',
+                    notas: notas || '',
+                    fechaPago: fechaPago ? Timestamp.fromDate(parseDate(fechaPago)) : null,
+                    fechaCreacion: Timestamp.now(),
+                    fechaUltimaActualizacion: Timestamp.now()
+                };
+                
+                const newDocRef = doc(solicitudesCollectionRef);
+                batch.set(newDocRef, solicitudData);
+                solicitudesToImport.push(solicitudData);
+            }
+            
+            await batch.commit();
+            showModalMessage(`${solicitudesToImport.length} solicitudes importadas correctamente`, 'success');
+            loadSolicitudes();
+        }
+    } catch (error) {
+        console.error(`Error importing ${type}:`, error);
+        showModalMessage(`Error al importar ${type}: ${error.message}`, 'error');
+    }
+}
+
+// Add this to the DOMContentLoaded event listener:
+document.addEventListener('DOMContentLoaded', () => {
+    initApplication();
+    
+    // Add buttons for bulk imports
+    const importContainer = document.createElement('div');
+    importContainer.className = 'my-6 p-4 bg-gray-50 rounded-lg shadow';
+    importContainer.innerHTML = `
+        <h3 class="text-lg font-medium text-gray-800 mb-3">Importación Masiva</h3>
+        <div class="flex flex-col sm:flex-row gap-4 items-start">
+            <div>
+                <button id="btnImportJugadoresCSV" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+                    <i class="fas fa-users mr-2"></i>Importar Jugadores CSV
+                </button>
+                <p class="mt-2 text-xs text-gray-500">Formato: Código,Nombre</p>
+            </div>
+            <div>
+                <button id="btnImportSolicitudesCSV" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+                    <i class="fas fa-file-import mr-2"></i>Importar Solicitudes CSV
+                </button>
+                <p class="mt-2 text-xs text-gray-500">Formato completo como en exportación</p>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('verJugadoresTab').prepend(importContainer);
+    
+    document.getElementById('btnImportJugadoresCSV').addEventListener('click', () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.csv';
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
+            reader.readAsText(file);
+        };
+        fileInput.click();
+    });
+    
+    document.getElementById('btnImportSolicitudesCSV').addEventListener('click', () => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.csv';
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
+            reader.readAsText(file);
+        };
+        fileInput.click();
+    });
+});
+
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
     const expectedHeaders = [
