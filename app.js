@@ -595,6 +595,12 @@ formEditJugador.addEventListener('submit', async (e) => {
         return;
     }
 
+    // Verificar que el código sea un número
+    if (isNaN(parseInt(codigo))) {
+        showError('editCodigo', "El código debe ser un número");
+        return;
+    }
+
     // Verificar si el nombre ya existe (excluyendo el jugador actual)
     const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === nombreCompleto.toLowerCase() && j.id !== jugadorId);
     if (nombreExists) {
@@ -1619,30 +1625,7 @@ async function loadInitialData() {
     }
 }
 
-// Iniciar la aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    initApplication();
-});
-
-document.getElementById('btnImportCsv').addEventListener('click', () => {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-    if (!file) {
-        showModalMessage("Seleccione un archivo CSV para importar.", "warning");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const csvText = e.target.result;
-        importarCSV(csvText);
-    };
-    reader.readAsText(file);
-});
-
 // --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
-// In app.js, replace the current importarCSV function with this improved version:
-
 async function importarCSV(csvText, type = 'solicitudes') {
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(/[,;]/).map(h => h.trim());
@@ -1657,24 +1640,51 @@ async function importarCSV(csvText, type = 'solicitudes') {
                 if (lines[i].trim() === '') continue;
                 
                 const values = lines[i].split(/[,;]/).map(v => v.trim());
-                const [codigo, nombreCompleto] = values;
                 
-                if (!codigo || !nombreCompleto) continue;
-                
+                // Parsear datos del jugador según el formato del CSV
                 const jugadorData = {
-                    codigo,
-                    nombreCompleto,
+                    codigo: values[0] ? parseInt(values[0]) : null,
+                    nombreCompleto: values[1] || '',
+                    marcaRaqueta: values[2] || '',
+                    modeloRaqueta: values[3] || '',
+                    tensionVertical: values[4] ? parseFloat(values[4]) : null,
+                    tensionHorizontal: values[5] ? parseFloat(values[5]) : null,
+                    tipoCuerda: values[6] || '',
+                    cuerdaIncluida: values[7] ? values[7].toLowerCase() === 'sí' || values[7].toLowerCase() === 'si' : false,
                     fechaRegistro: Timestamp.now(),
                     fechaUltimaActualizacion: Timestamp.now()
                 };
                 
-                const newDocRef = doc(jugadoresCollectionRef);
-                batch.set(newDocRef, jugadorData);
+                if (!jugadorData.codigo || !jugadorData.nombreCompleto) continue;
+                
+                // Verificar si el jugador ya existe
+                const existingQuery = query(jugadoresCollectionRef, where("codigo", "==", jugadorData.codigo));
+                const existingSnapshot = await getDocs(existingQuery);
+                
+                if (!existingSnapshot.empty) {
+                    // Actualizar jugador existente
+                    const existingDoc = existingSnapshot.docs[0];
+                    await updateDoc(existingDoc.ref, {
+                        nombreCompleto: jugadorData.nombreCompleto,
+                        marcaRaqueta: jugadorData.marcaRaqueta,
+                        modeloRaqueta: jugadorData.modeloRaqueta,
+                        tensionVertical: jugadorData.tensionVertical,
+                        tensionHorizontal: jugadorData.tensionHorizontal,
+                        tipoCuerda: jugadorData.tipoCuerda,
+                        cuerdaIncluida: jugadorData.cuerdaIncluida,
+                        fechaUltimaActualizacion: Timestamp.now()
+                    });
+                } else {
+                    // Crear nuevo jugador
+                    const newDocRef = doc(jugadoresCollectionRef);
+                    batch.set(newDocRef, jugadorData);
+                }
+                
                 jugadoresToImport.push(jugadorData);
             }
             
             await batch.commit();
-            showModalMessage(`${jugadoresToImport.length} jugadores importados correctamente`, 'success');
+            showModalMessage(`${jugadoresToImport.length} jugadores importados/actualizados correctamente`, 'success');
             loadJugadoresParaDropdown();
             loadJugadoresParaFiltros();
             loadJugadoresParaLista();
@@ -1752,7 +1762,7 @@ async function importarCSV(csvText, type = 'solicitudes') {
     }
 }
 
-// Add this to the DOMContentLoaded event listener:
+// Iniciar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     initApplication();
     
@@ -1766,7 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button id="btnImportJugadoresCSV" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
                     <i class="fas fa-users mr-2"></i>Importar Jugadores CSV
                 </button>
-                <p class="mt-2 text-xs text-gray-500">Formato: Código,Nombre</p>
+                <p class="mt-2 text-xs text-gray-500">Formato: Código,Nombre,Marca,Modelo,Tensión V,Tensión H,Tipo Cuerda,Cuerda Incluida</p>
             </div>
             <div>
                 <button id="btnImportSolicitudesCSV" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
@@ -1804,124 +1814,4 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         fileInput.click();
     });
-});
-
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim());
-    const expectedHeaders = [
-        "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
-        "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
-        "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
-        "Estado Entrega", "Notas", "Fecha Pago"
-    ];
-
-    if (headers.join(',') !== expectedHeaders.join(',')) {
-        showModalMessage("Error: El encabezado del CSV no coincide con el formato esperado.", "error");  
-    }
-
-    const nuevasSolicitudes = [];
-    const errores = [];
-    const jugadoresNuevos = new Map();
-
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        if (values.length !== expectedHeaders.length) {
-            errores.push(`Línea ${i + 1}: Número de columnas incorrecto.`);
-            continue;
-        }
-
-        const [
-            codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
-            tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
-            fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
-            estadoEntrega, notas, fechaPago
-        ] = values;
-
-        let jugador = jugadoresData.find(j => j.codigo.toString() === codigoJugador);
-
-        if (!jugador && !jugadoresNuevos.has(codigoJugador)) {
-            const nuevoDocRef = doc(collection(db, `users/${userId}/jugadores`));
-            const nuevoJugador = {
-                id: nuevoDocRef.id,
-                codigo: parseInt(codigoJugador),
-                nombreCompleto: nombreJugador,
-                marcaRaqueta,
-                modeloRaqueta,
-                tensionVertical: parseFloat(tensionVertical) || 0,
-                tensionHorizontal: parseFloat(tensionHorizontal) || 0,
-                tipoCuerda: tipoCuerda || "",
-                fechaRegistro: Timestamp.now(),
-                fechaUltimaActualizacion: Timestamp.now()
-            };
-            jugadoresNuevos.set(codigoJugador, nuevoJugador);
-            jugadoresData.push(nuevoJugador);
-            await setDoc(nuevoDocRef, nuevoJugador);
-            jugador = nuevoJugador;
-        } else if (!jugador) {
-            jugador = jugadoresNuevos.get(codigoJugador);
-        }
-
-      
-        if (!marcaRaqueta || isNaN(parseFloat(tensionVertical)) || isNaN(parseFloat(tensionHorizontal)) || !fechaSolicitudDate) {
-            errores.push(`Línea ${i + 1}: Datos obligatorios faltantes o incorrectos.`);
-            continue;
-        }
-
-        nuevasSolicitudes.push({
-            jugadorId: jugador.id,
-            nombreJugador,
-            marcaRaqueta,
-            modeloRaqueta,
-            tensionVertical: parseFloat(tensionVertical),
-            tensionHorizontal: parseFloat(tensionHorizontal),
-            tipoCuerda,
-            cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí',
-            fechaSolicitud: Timestamp.fromDate(fechaSolicitudDate),
-            fechaEntregaEstimada: fechaEntregaEstimadaDate ? Timestamp.fromDate(fechaEntregaEstimadaDate) : null,
-            fechaPago: fechaPagoDate ? Timestamp.fromDate(fechaPagoDate) : null,
-            precio: parseFloat(precio) || 0,
-            estadoPago,
-            estadoEntrega: estadoEntrega || "Pendiente",
-            notas,
-            fechaCreacion: Timestamp.now(),
-            fechaUltimaActualizacion: Timestamp.now()
-        });
-    }
-
-    if (errores.length > 0) {
-        showModalMessage(`Errores durante la importación:<br>${errores.join('<br>')}`, 'warning');
-    }
-
-    if (nuevasSolicitudes.length > 0) {
-        const batch = writeBatch(db);
-        nuevasSolicitudes.forEach(data => {
-            const docRef = doc(collection(db, `users/${userId}/solicitudes`));
-            batch.set(docRef, data);
-        });
-
-        await batch.commit();
-        showModalMessage(`Importación completada: ${nuevasSolicitudes.length} solicitudes agregadas.`, 'success');
-        loadSolicitudes();
-    }
-function parseFechaCSV(fechaStr) {
-    if (!fechaStr) return null;
-    const [dia, mes, anio] = fechaStr.split('/');
-    const date = new Date(`${anio}-${mes}-${dia}`);
-    return isNaN(date) ? null : date;
-}
-
-document.getElementById('btnImportCsv').addEventListener('click', () => {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-    if (!file) {
-        showModalMessage("Seleccione un archivo CSV para importar.", "warning");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        const csvText = e.target.result;
-        importarCSV(csvText);
-    };
-    reader.readAsText(file);
 });
