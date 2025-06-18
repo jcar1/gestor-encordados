@@ -309,7 +309,110 @@ document.getElementById('solicitudCuerdaIncluida').addEventListener('change', ()
 document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('editSolicitud'));
 
 // --- AUTOCOMPLETADO DE JUGADORES ---
+// [El código anterior permanece igual hasta la función setupAutocomplete]
+
+// --- AUTOCOMPLETADO DE JUGADORES MEJORADO ---
 function setupAutocomplete() {
+    const input = document.getElementById('solicitudJugadorNombre');
+    const hiddenInput = document.getElementById('solicitudJugadorId');
+    const autocompleteContainer = document.createElement('div');
+    autocompleteContainer.className = 'autocomplete-items absolute z-10 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto w-full';
+    input.parentNode.appendChild(autocompleteContainer);
+
+    input.addEventListener('input', function() {
+        const val = this.value.trim().toLowerCase();
+        autocompleteContainer.innerHTML = '';
+        
+        if (val.length < 2) {
+            hiddenInput.value = '';
+            // Limpiar campos de raqueta si no hay jugador seleccionado
+            document.getElementById('solicitudMarcaRaqueta').value = '';
+            document.getElementById('solicitudModeloRaqueta').value = '';
+            document.getElementById('solicitudTensionVertical').value = '';
+            document.getElementById('solicitudTensionHorizontal').value = '';
+            document.getElementById('solicitudTipoCuerda').value = '';
+            return;
+        }
+
+        const matches = jugadoresData.filter(jugador => 
+            jugador.nombreCompleto.toLowerCase().includes(val) || 
+            jugador.codigo.toString().includes(val)
+        ).slice(0, 10); // Mostrar hasta 10 resultados
+
+        if (matches.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'px-4 py-2 text-gray-500';
+            noResults.textContent = 'No se encontraron jugadores';
+            autocompleteContainer.appendChild(noResults);
+            return;
+        }
+
+        matches.forEach(jugador => {
+            const item = document.createElement('div');
+            item.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer';
+            item.innerHTML = `
+                <div class="font-semibold">${jugador.nombreCompleto}</div>
+                <div class="text-sm text-gray-600">
+                    <span class="font-medium">Código:</span> ${jugador.codigo}
+                    ${jugador.marcaRaqueta ? `<span class="ml-2"><span class="font-medium">Raqueta:</span> ${jugador.marcaRaqueta} ${jugador.modeloRaqueta || ''}</span>` : ''}
+                </div>
+            `;
+            
+            item.addEventListener('click', function() {
+                input.value = jugador.nombreCompleto;
+                hiddenInput.value = jugador.id;
+                autocompleteContainer.innerHTML = '';
+                
+                // Autocompletar datos de raqueta del jugador
+                document.getElementById('solicitudMarcaRaqueta').value = jugador.marcaRaqueta || '';
+                document.getElementById('solicitudModeloRaqueta').value = jugador.modeloRaqueta || '';
+                document.getElementById('solicitudTensionVertical').value = jugador.tensionVertical || '';
+                document.getElementById('solicitudTensionHorizontal').value = jugador.tensionHorizontal || '';
+                document.getElementById('solicitudTipoCuerda').value = jugador.tipoCuerda || '';
+            });
+            
+            autocompleteContainer.appendChild(item);
+        });
+    });
+
+    // Cerrar autocompletado al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+            autocompleteContainer.innerHTML = '';
+        }
+    });
+
+    // Manejar teclado (flechas arriba/abajo y enter)
+    input.addEventListener('keydown', function(e) {
+        const items = autocompleteContainer.querySelectorAll('div');
+        let currentFocus = -1;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus = Math.min(currentFocus + 1, items.length - 1);
+            setActive(items, currentFocus);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus = Math.max(currentFocus - 1, -1);
+            setActive(items, currentFocus);
+        } else if (e.key === 'Enter' && currentFocus > -1) {
+            e.preventDefault();
+            items[currentFocus].click();
+        }
+    });
+
+    function setActive(items, index) {
+        items.forEach(item => item.classList.remove('bg-blue-50'));
+        if (index >= 0 && index < items.length) {
+            items[index].classList.add('bg-blue-50');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
+}
+
+// [El resto del código permanece igual]
+
+
     const input = document.getElementById('solicitudJugadorNombre');
     const hiddenInput = document.getElementById('solicitudJugadorId');
     const autocompleteContainer = document.createElement('div');
