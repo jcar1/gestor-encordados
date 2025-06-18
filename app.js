@@ -464,7 +464,6 @@ function setupAutocomplete() {
             autocompleteContainer.innerHTML = '';
         }
     });
-}
 
 // --- GESTIÓN DE JUGADORES ---
 function loadJugadoresParaDropdown() {
