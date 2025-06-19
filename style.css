@@ -388,3 +388,12 @@ input[type="file"]::file-selector-button:hover {
         background-position: -200% 0;
     }
 }
+
+/* Añade este código al final del archivo */
+.table-responsive th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 10;
+    text-indent: -5ch; /* Mueve el texto 5 caracteres a la izquierda */
+}
