@@ -3,9 +3,10 @@ import { getAuth, listUsers } from "firebase/auth";
 import { getFirestore, collection, getCountFromServer } from "firebase/firestore";
 
 const LIMITS = {
-  AUTH: 9000,       // 90% de 10,000
-  FIRESTORE: 45000, // 90% de 50,000/día
-  STORAGE: 0.9      // 90% de 1GB
+  AUTH: 9500,        // Bloquear al 95% de 10,000
+  FIRESTORE: 47500,  // 95% de 50,000/día
+  STORAGE: 0.95,     // 95% de 1GB
+  FUNCTIONS: 118750  // 95% de 125,000/mes
 };
 
 export const checkLimits = async (firebaseConfig) => {
