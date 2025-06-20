@@ -1,0 +1,47 @@
+name: Firebase Limits Monitor
+on:
+  schedule:
+    - cron: '0 12 * * *' # Ejecuta diario a mediodía UTC
+  workflow_dispatch: # Permite ejecución manual
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm install firebase @firebase/auth @firebase/firestore
+        
+      - name: Run limit check
+        id: limit-check
+        run: |
+          node -e "
+            import { checkLimits } from './src/utils/freeTierMonitor.js';
+            import { config } from './firebase-config.js';
+            
+            const warnings = await checkLimits(config);
+            if (warnings) {
+              console.error('⚠️ Límites cercanos:\\n' + warnings.join('\\n'));
+              process.exit(1);
+            } else {
+              console.log('✅ Todo dentro de los límites');
+            }
+          "
+          
+      - name: Create Issue if near limits
+        if: steps.limit-check.outcome == 'failure'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Firebase cerca de límites gratuitos',
+              body: `Se están alcanzando los límites:\\n\\n${process.env.WARNINGS}`
+            });
