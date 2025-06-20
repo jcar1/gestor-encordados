@@ -51,16 +51,6 @@ const firestoreSettings = {
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
-checkLimits(firebaseConfig).then(warnings => {
-  if (warnings) {
-    console.warn("⚠️ Límites gratuitos cercanos:", warnings.join(", "));
-    // Opcional: Mostrar alerta en la UI
-    alert(`ADVERTENCIA: ${warnings.join("\n")}`);
-  }
-}).catch(error => {
-  console.error("Error al verificar límites:", error);
-});
-
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
 
