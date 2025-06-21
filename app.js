@@ -9,12 +9,6 @@ const firebaseConfig = {
     measurementId: "G-VJG0HVKMZV"
 };
 
-// Credenciales fijas
-const FIXED_CREDENTIALS = {
-    email: "jcsueca@gmail.com",
-    password: "A123456!"
-};
-
 // Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
@@ -22,7 +16,8 @@ import {
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence,
-    onAuthStateChanged
+    onAuthStateChanged,
+    signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
     getFirestore, 
@@ -75,73 +70,57 @@ let unsubscribeJugadoresLista = null;
 let currentSolicitudesData = [];
 let jugadoresData = [];
 
-// Función de autenticación mejorada
+// --- LOGIN Y LOGOUT ---
+// Asegúrate de tener el formulario de login en tu index.html:
+/*
+<div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+        <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
+        <form id="loginForm" class="space-y-4">
+            <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
+            <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
+        </form>
+        <div id="loginError" class="text-red-600 mt-2 text-center"></div>
+    </div>
+</div>
+<button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
+*/
 
-async function authenticateUser() {
+// Login
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const loginError = document.getElementById('loginError');
+    loginError.textContent = '';
     try {
         await setPersistence(auth, browserLocalPersistence);
-        const userCredential = await signInWithEmailAndPassword(
-            auth, 
-            FIXED_CREDENTIALS.email, 
-            FIXED_CREDENTIALS.password
-        );
-        return userCredential.user;
+        await signInWithEmailAndPassword(auth, email, password);
+        document.getElementById('loginContainer').style.display = 'none';
+        document.querySelector('.container').style.display = '';
+        document.getElementById('logoutBtn').style.display = '';
+        initApplication();
     } catch (error) {
-        console.error("Error de autenticación:", error);
-        
-        // Reintento después de 2 segundos - SIN PARÉNTESIS EXTRA
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        try {
-            const userCredential = await signInWithEmailAndPassword(
-                auth, 
-                FIXED_CREDENTIALS.email, 
-                FIXED_CREDENTIALS.password
-            );
-            return userCredential.user;
-        } catch (retryError) {
-            console.error("Error en reintento de autenticación:", retryError);
-            showModalMessage("Error de conexión. La aplicación funciona en modo offline.", "warning");
-            return null;
-        }
+        loginError.textContent = 'Usuario o contraseña incorrectos';
     }
-}
+});
 
-// Función principal de inicialización
-async function initApplication() {
-    try {
-        const user = await authenticateUser();
-        if (user) {
-            userId = user.uid;
-            document.getElementById('userIdDisplay').textContent = userId;
-            
-            // Configurar referencias a la base de datos
-            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-            
-            isAuthReady = true;
-            
-            try {
-                await loadInitialData();
-                showTab('nuevaSolicitudTab');
-            } catch (loadError) {
-                console.error("Error cargando datos iniciales:", loadError);
-                showModalMessage("Error al cargar datos iniciales", "error");
-            }
-        }
-    } catch (error) {
-        console.error("Error inicializando la aplicación:", error);
-        document.getElementById('userIdDisplay').textContent = "Error de conexión";
-        showModalMessage("Error al iniciar la aplicación: " + (error.message || error), "error");
-    }
-}
+// Logout
+document.getElementById('logoutBtn').onclick = () => {
+    signOut(auth);
+};
+
+// --- FIN LOGIN Y LOGOUT ---
 
 // Observador de estado de autenticación
 onAuthStateChanged(auth, (user) => {
     if (user) {
         userId = user.uid;
         document.getElementById('userIdDisplay').textContent = userId;
-        console.log("Usuario autenticado con ID:", userId);
-        
+        document.getElementById('loginContainer').style.display = 'none';
+        document.querySelector('.container').style.display = '';
+        document.getElementById('logoutBtn').style.display = '';
         if (!isAuthReady) {
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
@@ -149,9 +128,11 @@ onAuthStateChanged(auth, (user) => {
             loadInitialData();
         }
     } else {
-        console.log("Usuario no autenticado");
         document.getElementById('userIdDisplay').textContent = "No autenticado";
-        authenticateUser();
+        document.getElementById('loginContainer').style.display = '';
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+        isAuthReady = false;
     }
 });
 
