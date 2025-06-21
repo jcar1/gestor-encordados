@@ -29,6 +29,18 @@
     }
 </script>
 
+<div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+        <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
+        <form id="loginForm" class="space-y-4">
+            <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
+            <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
+        </form>
+        <div id="loginError" class="text-red-600 mt-2 text-center"></div>
+    </div>
+</div>
+<button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
 
 <body class="p-4 md:p-8">
     <div class="container mx-auto max-w-7xl bg-white p-6 md:p-8 rounded-xl shadow-2xl">
