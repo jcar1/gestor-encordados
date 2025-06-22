@@ -754,8 +754,14 @@ formEditJugador.addEventListener('submit', async (e) => {
     }
 
     try {
-        const jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
         
+        let jugadorDocRef;
+        const jugador = jugadoresData.find(j => j.id === jugadorId);
+        if (userRole === 'admin' && jugador && jugador.refPath) {
+            jugadorDocRef = doc(db, jugador.refPath);
+        } else {
+            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
+}
         await updateDoc(jugadorDocRef, {
             codigo,
             nombreCompleto,
@@ -795,7 +801,16 @@ window.confirmDeleteJugador = (jugadorId, nombreJugador) => {
                     return;
                 }
                 
-                await deleteDoc(doc(jugadoresCollectionRef, jugadorId));
+                
+                let jugadorDocRef;
+                const jugador = jugadoresData.find(j => j.id === jugadorId);
+                if (userRole === 'admin' && jugador && jugador.refPath) {
+                    jugadorDocRef = doc(db, jugador.refPath);
+                } else {
+                    jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
+            }
+                await deleteDoc(jugadorDocRef);
+
                 showModalMessage(`Jugador "${nombreDecodificado}" eliminado correctamente.`, "success");
                 loadJugadoresParaFiltros(); // Actualizar filtros después de eliminar
             } catch (error) {
@@ -1074,7 +1089,13 @@ window.openEditSolicitudModal = async (solicitudId) => {
     if (!isAuthReady) return;
     
     try {
-        const solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
+        let solicitudDocRef;
+        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
+        if (userRole === 'admin' && solicitud && solicitud.refPath) {
+          solicitudDocRef = doc(db, solicitud.refPath);
+        } else {
+            solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
+        }
         const docSnap = await getDoc(solicitudDocRef);
         
         if (docSnap.exists()) {
@@ -1184,7 +1205,13 @@ formEditSolicitud.addEventListener('submit', async (e) => {
     }
 
     try {
-        const solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
+        let solicitudDocRef;
+        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
+        if (userRole === 'admin' && solicitud && solicitud.refPath) {
+          solicitudDocRef = doc(db, solicitud.refPath);
+        } else {
+           solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
+    }
         
         await updateDoc(solicitudDocRef, {
             ...formData,
@@ -1208,7 +1235,15 @@ window.confirmDeleteSolicitud = (solicitudId) => {
             if (!isAuthReady) return;
             
             try {
-                await deleteDoc(doc(solicitudesCollectionRef, solicitudId));
+                let solicitudDocRef;
+                const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
+                if (userRole === 'admin' && solicitud && solicitud.refPath) {
+                     solicitudDocRef = doc(db, solicitud.refPath);
+                } else {
+                    solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
+            }
+                await deleteDoc(solicitudDocRef);
+                    
                 showModalMessage("Solicitud eliminada correctamente.", "success");
             } catch (error) {
                 showModalMessage(`Error al eliminar solicitud: ${error.message}`, "error");
@@ -1242,9 +1277,15 @@ document.getElementById('btnDeleteSelected').addEventListener('click', function(
                 const batch = writeBatch(db);
                 
                 selectedIds.forEach(id => {
-                    const docRef = doc(solicitudesCollectionRef, id);
+                const solicitud = currentSolicitudesData.find(s => s.id === id);
+                let docRef;
+                if (userRole === 'admin' && solicitud && solicitud.refPath) {
+                    docRef = doc(db, solicitud.refPath);
+                } else {
+                    docRef = doc(solicitudesCollectionRef, id);
+                }
                     batch.delete(docRef);
-                });
+            });
                 
                 await batch.commit();
                 showModalMessage(`${selectedIds.length} solicitudes eliminadas correctamente.`, "success");
