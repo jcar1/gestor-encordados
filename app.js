@@ -624,8 +624,9 @@ function loadJugadoresParaLista() {
             listaJugadoresBody.innerHTML = '';
             
             snapshot.forEach(docSnap => {
+               
                 const jugador = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
-                jugadoresData.push(jugador);
+                jugadoresData.push(jugador);                            
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors duration-150";
                 
