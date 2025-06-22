@@ -21,53 +21,6 @@ import {
 let userRole = null;
 
 // Observador de estado de autenticación
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        userId = user.uid;
-        document.getElementById('userIdDisplay').textContent = userId;
-        document.getElementById('loginContainer').style.display = 'none';
-        document.querySelector('.container').style.display = '';
-        document.getElementById('logoutBtn').style.display = '';
-
-        // --- CONSULTAR ROL DE USUARIO ---
-        try {
-            const userDoc = await getDoc(doc(db, "users", userId));
-            userRole = userDoc.exists() ? userDoc.data().role : null;
-            if (userRole === 'admin') {
-                document.body.classList.add('admin');
-                // document.getElementById('adminPanel').style.display = '';
-            } else {
-                document.body.classList.remove('admin');
-                // document.getElementById('adminPanel').style.display = 'none';
-            }
-        } catch (error) {
-            userRole = null;
-            document.body.classList.remove('admin');
-        }
-        // --- FIN CONSULTA ROL ---
-
-        // Cambia la inicialización de las referencias aquí:
-        if (!isAuthReady) {
-            if (userRole === 'admin') {
-                jugadoresCollectionRef = collectionGroup(db, "jugadores");
-                solicitudesCollectionRef = collectionGroup(db, "solicitudes");
-            } else {
-                jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-                solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-            }
-            isAuthReady = true;
-            loadInitialData();
-        }
-    } else {
-        document.getElementById('userIdDisplay').textContent = "No autenticado";
-        document.getElementById('loginContainer').style.display = '';
-        document.querySelector('.container').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'none';
-        isAuthReady = false;
-        userRole = null;
-        document.body.classList.remove('admin');
-    }
-});
 
 import { 
     getFirestore, 
