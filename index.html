@@ -29,6 +29,13 @@
     }
 </script>
 
+<!-- Panel solo visible para admin -->
+<div id="adminPanel" style="display:none;">
+  <h2>Panel de administración</h2>
+  <!-- Aquí puedes poner botones o secciones solo para admin -->
+  <button onclick="alert('Función solo para admin')">Función admin</button>
+</div>
+	
 <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
     <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
         <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
