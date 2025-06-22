@@ -16,7 +16,6 @@ import {
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence,
-    onAuthStateChanged,
     signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 let userRole = null;
@@ -166,7 +165,7 @@ document.getElementById('logoutBtn').onclick = () => {
 // --- FIN LOGIN Y LOGOUT ---
 
 // Observador de estado de autenticación
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
         userId = user.uid;
         document.getElementById('userIdDisplay').textContent = userId;
