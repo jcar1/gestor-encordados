@@ -19,6 +19,7 @@ import {
 
     let userRole = null; // Variable global para el rol
 
+// Observador de estado de autenticación
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         userId = user.uid;
@@ -31,24 +32,28 @@ onAuthStateChanged(auth, async (user) => {
         try {
             const userDoc = await getDoc(doc(db, "users", userId));
             userRole = userDoc.exists() ? userDoc.data().role : null;
-            
-          if (userRole === 'admin') {
-            document.body.classList.add('admin');
-            document.getElementById('adminPanel').style.display = '';
-        } else {
-            document.body.classList.remove('admin');
-            document.getElementById('adminPanel').style.display = 'none';
-     }  
-       
+            if (userRole === 'admin') {
+                document.body.classList.add('admin');
+                // document.getElementById('adminPanel').style.display = '';
+            } else {
+                document.body.classList.remove('admin');
+                // document.getElementById('adminPanel').style.display = 'none';
+            }
         } catch (error) {
             userRole = null;
             document.body.classList.remove('admin');
         }
         // --- FIN CONSULTA ROL ---
 
+        // Cambia la inicialización de las referencias aquí:
         if (!isAuthReady) {
-            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            if (userRole === 'admin') {
+                jugadoresCollectionRef = collectionGroup(db, "jugadores");
+                solicitudesCollectionRef = collectionGroup(db, "solicitudes");
+            } else {
+                jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+                solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            }
             isAuthReady = true;
             loadInitialData();
         }
@@ -62,13 +67,12 @@ onAuthStateChanged(auth, async (user) => {
         document.body.classList.remove('admin');
     }
 });
-    
-//    onAuthStateChanged,
-    signOut
+
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
     getFirestore, 
     collection, 
+    collectionGroup,
     doc,
     getDoc,
     setDoc,
