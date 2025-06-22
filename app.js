@@ -668,25 +668,33 @@ function loadJugadoresParaLista() {
 
 window.openEditJugadorModal = async (jugadorId) => {
     if (!isAuthReady) return;
-    
+
     try {
-        const jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
+        let jugadorDocRef;
+        // Busca el jugador en jugadoresData
+        const jugador = jugadoresData.find(j => j.id === jugadorId);
+        if (userRole === 'admin' && jugador && jugador.refPath) {
+            jugadorDocRef = doc(db, jugador.refPath);
+        } else {
+            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
+        }
+
         const docSnap = await getDoc(jugadorDocRef);
-        
+
         if (docSnap.exists()) {
-            const jugador = docSnap.data();
-            
+            const jugadorData = docSnap.data();
+
             formEditJugador.editJugadorId.value = jugadorId;
-            formEditJugador.editJugadorCodigo.value = jugador.codigo;
-            formEditJugador.editJugadorNombreCompleto.value = jugador.nombreCompleto;
-            formEditJugador.editJugadorTelefono.value = jugador.telefono || '';
-            formEditJugador.editJugadorEmail.value = jugador.email || '';
-            formEditJugador.editJugadorMarcaRaqueta.value = jugador.marcaRaqueta || '';
-            formEditJugador.editJugadorModeloRaqueta.value = jugador.modeloRaqueta || '';
-            formEditJugador.editJugadorTensionVertical.value = jugador.tensionVertical || '';
-            formEditJugador.editJugadorTensionHorizontal.value = jugador.tensionHorizontal || '';
-            formEditJugador.editJugadorTipoCuerda.value = jugador.tipoCuerda || '';
-            
+            formEditJugador.editJugadorCodigo.value = jugadorData.codigo;
+            formEditJugador.editJugadorNombreCompleto.value = jugadorData.nombreCompleto;
+            formEditJugador.editJugadorTelefono.value = jugadorData.telefono || '';
+            formEditJugador.editJugadorEmail.value = jugadorData.email || '';
+            formEditJugador.editJugadorMarcaRaqueta.value = jugadorData.marcaRaqueta || '';
+            formEditJugador.editJugadorModeloRaqueta.value = jugadorData.modeloRaqueta || '';
+            formEditJugador.editJugadorTensionVertical.value = jugadorData.tensionVertical || '';
+            formEditJugador.editJugadorTensionHorizontal.value = jugadorData.tensionHorizontal || '';
+            formEditJugador.editJugadorTipoCuerda.value = jugadorData.tipoCuerda || '';
+
             editJugadorModal.style.display = 'flex';
         } else {
             showModalMessage("Jugador no encontrado.", "error");
