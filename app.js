@@ -31,15 +31,15 @@ onAuthStateChanged(auth, async (user) => {
         try {
             const userDoc = await getDoc(doc(db, "users", userId));
             userRole = userDoc.exists() ? userDoc.data().role : null;
-            if (userRole === 'admin') {
-                document.body.classList.add('admin');
-                // Aquí puedes mostrar paneles, botones o secciones solo para admin
-                // Por ejemplo:
-                // document.getElementById('adminPanel').style.display = '';
-            } else {
-                document.body.classList.remove('admin');
-                // document.getElementById('adminPanel').style.display = 'none';
-            }
+            
+          if (userRole === 'admin') {
+            document.body.classList.add('admin');
+            document.getElementById('adminPanel').style.display = '';
+        } else {
+            document.body.classList.remove('admin');
+            document.getElementById('adminPanel').style.display = 'none';
+     }  
+       
         } catch (error) {
             userRole = null;
             document.body.classList.remove('admin');
