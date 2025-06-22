@@ -16,7 +16,54 @@ import {
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence,
-    onAuthStateChanged,
+
+    let userRole = null; // Variable global para el rol
+
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        userId = user.uid;
+        document.getElementById('userIdDisplay').textContent = userId;
+        document.getElementById('loginContainer').style.display = 'none';
+        document.querySelector('.container').style.display = '';
+        document.getElementById('logoutBtn').style.display = '';
+
+        // --- CONSULTAR ROL DE USUARIO ---
+        try {
+            const userDoc = await getDoc(doc(db, "users", userId));
+            userRole = userDoc.exists() ? userDoc.data().role : null;
+            if (userRole === 'admin') {
+                document.body.classList.add('admin');
+                // Aquí puedes mostrar paneles, botones o secciones solo para admin
+                // Por ejemplo:
+                // document.getElementById('adminPanel').style.display = '';
+            } else {
+                document.body.classList.remove('admin');
+                // document.getElementById('adminPanel').style.display = 'none';
+            }
+        } catch (error) {
+            userRole = null;
+            document.body.classList.remove('admin');
+        }
+        // --- FIN CONSULTA ROL ---
+
+        if (!isAuthReady) {
+            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            isAuthReady = true;
+            loadInitialData();
+        }
+    } else {
+        document.getElementById('userIdDisplay').textContent = "No autenticado";
+        document.getElementById('loginContainer').style.display = '';
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+        isAuthReady = false;
+        userRole = null;
+        document.body.classList.remove('admin');
+    }
+});
+    
+//    onAuthStateChanged,
     signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
