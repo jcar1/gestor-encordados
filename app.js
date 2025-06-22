@@ -18,7 +18,7 @@ import {
     browserLocalPersistence,
     onAuthStateChanged,
     signOut
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
 let userRole = null;
 
 // Observador de estado de autenticación
@@ -70,7 +70,6 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
     getFirestore, 
     collection, 
