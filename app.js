@@ -624,7 +624,7 @@ function loadJugadoresParaLista() {
             listaJugadoresBody.innerHTML = '';
             
             snapshot.forEach(docSnap => {
-                const jugador = { id: docSnap.id, ...docSnap.data() };
+                const jugador = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
                 jugadoresData.push(jugador);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors duration-150";
@@ -952,7 +952,7 @@ function loadSolicitudes() {
             listaSolicitudesBody.innerHTML = '';
             
             snapshot.forEach(docSnap => {
-                const solicitud = { id: docSnap.id, ...docSnap.data() };
+                const solicitud = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
                 currentSolicitudesData.push(solicitud);
                 
                 const tr = document.createElement('tr');
