@@ -9,51 +9,34 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-
-<!-- Agregar esto antes de </body> -->
-<script>
-    // Función para manejar la importación desde archivos locales
-    function handleFileImport(type) {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.csv';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                importarCSV(event.target.result, type);
-            };
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    }
-</script>
-
-<!-- Panel solo visible para admin -->
-<div id="adminPanel" style="display:none;">
-  <h2>Panel de administración</h2>
-  <!-- Aquí puedes poner botones o secciones solo para admin -->
-  <button onclick="alert('Función solo para admin')">Función admin</button>
-  <input type="text" id="userToChange" placeholder="User ID o correo">
-<button onclick="toggleAdmin()">Activar/Desactivar Admin</button>
-</div>
-	
-<div id="adminPanel" style="display:none;" class="bg-yellow-50 border border-yellow-300 p-4 rounded-lg my-4">
-  <h2 class="text-lg font-bold mb-2 text-yellow-800">Panel de Administración</h2>
-  
-  <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-    <input type="text" id="userToChange" placeholder="User ID del usuario" class="p-2 border border-gray-300 rounded w-full sm:w-1/2">
-    <button onclick="toggleAdmin()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
-      Activar/Desactivar Admin
-    </button>
-  </div>
-  <p class="text-sm text-gray-600 mt-2">Debes ingresar el UID exacto del usuario en Firestore.</p>
-  <p id="adminChangeResult" class="text-sm font-medium mt-2"></p>
-</div>
-
-<button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
-
 <body class="p-4 md:p-8">
+
+    <!-- Login Modal -->
+    <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
+        <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
+            <form id="loginForm" class="space-y-4">
+                <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
+                <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
+            </form>
+            <div id="loginError" class="text-red-600 mt-2 text-center"></div>
+        </div>
+    </div>
+        <!-- Panel solo visible para admin -->
+    <div id="adminPanel" style="display:none;" class="bg-yellow-50 border border-yellow-300 p-4 rounded-lg my-4">
+      <h2 class="text-lg font-bold mb-2 text-yellow-800">Panel de Administración</h2>
+      <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+        <input type="text" id="userToChange" placeholder="User ID del usuario" class="p-2 border border-gray-300 rounded w-full sm:w-1/2">
+        <button onclick="toggleAdmin()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
+          Activar/Desactivar Admin
+        </button>
+      </div>
+      <p class="text-sm text-gray-600 mt-2">Debes ingresar el UID exacto del usuario en Firestore.</p>
+      <p id="adminChangeResult" class="text-sm font-medium mt-2"></p>
+    </div>
+    <button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
+
     <div class="container mx-auto max-w-7xl bg-white p-6 md:p-8 rounded-xl shadow-2xl">
         <header class="mb-8 text-center">
             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">
@@ -81,9 +64,8 @@
                 </button>
             </nav>
         </div>
-
-        <main>
-            <!-- Nueva Solicitud Tab -->
+<!-- Nueva Solicitud Tab -->
+<<!-- Nueva Solicitud Tab -->
             <div id="nuevaSolicitudTab" class="tab-content">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Crear Nueva Solicitud de Encordado</h2>
                 <form id="formNuevaSolicitud" class="space-y-6">
@@ -224,8 +206,7 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="my-6 p-4 bg-gray-50 rounded-lg shadow">
+                div class="my-6 p-4 bg-gray-50 rounded-lg shadow">
                     <h3 class="text-lg font-medium text-gray-800 mb-3">Importar / Exportar Solicitudes</h3>
                     <div class="flex flex-col sm:flex-row gap-4 items-start">
                         <div class="flex-1">
@@ -297,8 +278,8 @@
 						</div>
 				  </div>
         </div>
-</div>		
-            <!-- Estadísticas Tab -->
+</div>	
+<!-- Estadísticas Tab -->
             <div id="estadisticasTab" class="tab-content" style="display: none;">
                 <h2 class="text-2xl font-semibold mb-6 text-gray-700">Panel de Estadísticas</h2>
                 <p class="mb-4 text-sm text-gray-600">Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
@@ -450,7 +431,6 @@
             </div>
         </main>
     </div>
-
     <!-- Modales -->
     <div id="messageModal" class="modal">
         <div class="modal-content text-center">
@@ -636,9 +616,8 @@
                 </div>
             </form>
         </div>
-    </div>
-
+    </div>  
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="app.js"></script>
 </body>
-</html>
+</html>  
