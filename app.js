@@ -151,7 +151,14 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         userId = user.uid;
         document.getElementById('userIdDisplay').textContent = userId;
-        document.getElementById('loginContainer').style.display = 'none';
+        
+		// 👉 Cargar rol del usuario
+        userRole = await checkUserRole(userId);
+        if (userRole === "admin") {
+            document.getElementById("adminPanel").style.display = "block";
+        }
+		
+		document.getElementById('loginContainer').style.display = 'none';
         document.querySelector('.container').style.display = '';
         document.getElementById('logoutBtn').style.display = '';
         if (!isAuthReady) {
@@ -489,8 +496,7 @@ function loadJugadoresParaDropdown() {
             jugadoresData.push({ id: doc.id, ...doc.data() });
         });
 
-        // Activar autocompletado luego de tener los datos cargados
-        setupAutocomplete();
+        
     }).catch(error => {
         console.error("Error cargando jugadores para dropdown:", error);
         showModalMessage("Error al cargar jugadores", "error");
@@ -1788,6 +1794,37 @@ async function loadInitialData() {
     } catch (error) {
         console.error("Error cargando datos iniciales:", error);
         showModalMessage("Error al cargar datos iniciales", "error");
+    }
+}
+
+async function toggleAdmin() {
+    const input = document.getElementById('userToChange');
+    const feedback = document.getElementById('adminChangeResult');
+    const uid = input.value.trim();
+    feedback.textContent = '';
+    
+    if (!uid) {
+        feedback.textContent = "⚠️ Debes ingresar un UID.";
+        feedback.className = "text-red-600";
+        return;
+    }
+
+    try {
+        const currentRole = await checkUserRole(uid);
+        const isAdminNow = currentRole === 'admin';
+        const success = await setAdminRole(uid, !isAdminNow);
+
+        if (success) {
+            feedback.textContent = `✅ Rol actualizado a: ${!isAdminNow ? 'admin' : 'user'}`;
+            feedback.className = "text-green-600";
+        } else {
+            feedback.textContent = "❌ No tienes permisos para cambiar roles.";
+            feedback.className = "text-red-600";
+        }
+    } catch (error) {
+        console.error("Error al cambiar rol:", error);
+        feedback.textContent = "❌ Error al cambiar el rol. Consulta la consola.";
+        feedback.className = "text-red-600";
     }
 }
 
