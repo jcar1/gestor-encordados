@@ -30,11 +30,26 @@
 </script>
 
 <!-- Panel solo visible para admin -->
-<div id="adminPanel" style="display:none;">
-  <h2>Panel de administración</h2>
-  <!-- Aquí puedes poner botones o secciones solo para admin -->
-  <button onclick="alert('Función solo para admin')">Función admin</button>
+<div id="adminPanel" style="display: none;">
+  <h3>Panel de Administrador</h3>
+  <input type="email" id="adminEmailInput" placeholder="Email del usuario">
+  <button onclick="grantAdmin()">Hacer Admin</button>
 </div>
+
+<script>
+  async function grantAdmin() {
+    const email = document.getElementById("adminEmailInput").value;
+    if (!email) return;
+
+    // Buscar UID del usuario por email
+    const user = await getAuth().getUserByEmail(email);
+    await setAdminRole(user.uid, true);
+    alert("¡Rol de admin asignado!");
+  }
+</script>
+
+
+	
 	
 <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
     <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
