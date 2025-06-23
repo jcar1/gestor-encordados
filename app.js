@@ -1930,7 +1930,15 @@ async function importarCSV(csvText, type = 'solicitudes') {
 
 // Iniciar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    initApplication();
+// Inicializa Firebase y escucha cambios de autenticación
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            userId = user.uid;
+            userRole = await checkUserRole(userId); // Verifica el rol
+            loadInitialData(); // Carga jugadores y solicitudes
+        }
+    });
+});
     
     // Add buttons for bulk imports
     const importContainer = document.createElement('div');
