@@ -1931,13 +1931,8 @@ async function importarCSV(csvText, type = 'solicitudes') {
 // Iniciar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
 // Inicializa Firebase y escucha cambios de autenticación
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            userId = user.uid;
-            userRole = await checkUserRole(userId); // Verifica el rol
-            loadInitialData(); // Carga jugadores y solicitudes
-        }
-    });
+  // Este evento ya está manejado por la primera instancia de onAuthStateChanged
+    // No necesitas duplicarlo
 });
     
     // Add buttons for bulk imports
