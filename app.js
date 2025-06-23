@@ -54,6 +54,24 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
 
+// Función para verificar el rol del usuario (admin/user)
+async function checkUserRole(uid) {
+    const userDoc = await getDoc(doc(db, "users", uid));
+    return userDoc.exists() ? userDoc.data().role || "user" : "user";
+}
+
+// Función para actualizar el rol de un usuario (solo para admins)
+async function updateUserRole(email, newRole) {
+    try {
+        const user = await getAuth().getUserByEmail(email);
+        await setDoc(doc(db, "users", user.uid), { role: newRole }, { merge: true });
+        return true;
+    } catch (error) {
+        console.error("Error updating role:", error);
+        return false;
+    }
+}
+
 // Referencias a colecciones
 let jugadoresCollectionRef;
 let solicitudesCollectionRef;
