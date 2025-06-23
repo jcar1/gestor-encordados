@@ -636,5 +636,34 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="app.js"></script>
+
+	<!-- Panel de Admin (añadir esto antes de </body>) -->
+<div id="adminPanel" class="bg-blue-50 p-4 rounded-lg mb-6 shadow-md" style="display: none;">
+    <h3 class="text-xl font-bold mb-4 text-blue-800">Panel de Administrador</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h4 class="font-semibold mb-3 text-gray-700">Gestión de Usuarios</h4>
+            <input id="adminUserEmail" type="email" placeholder="Email del usuario" 
+                   class="w-full p-2 border border-gray-300 rounded mb-3 focus:ring-blue-500 focus:border-blue-500">
+            <select id="adminUserRole" class="w-full p-2 border border-gray-300 rounded mb-3 focus:ring-blue-500 focus:border-blue-500">
+                <option value="user">Usuario Normal</option>
+                <option value="admin">Administrador</option>
+            </select>
+            <button id="adminUpdateRoleBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-150">
+                Actualizar Rol
+            </button>
+        </div>
+        <div class="bg-white p-4 rounded-lg shadow">
+            <h4 class="font-semibold mb-3 text-gray-700">Acciones Globales</h4>
+            <button id="adminExportAllBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded mb-3 transition duration-150">
+                <i class="fas fa-file-export mr-2"></i>Exportar Todo (CSV)
+            </button>
+            <button id="adminViewAllBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded transition duration-150">
+                <i class="fas fa-list mr-2"></i>Ver Todas las Solicitudes
+            </button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
