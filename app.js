@@ -1983,4 +1983,3 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         fileInput.click();
     });
-});
