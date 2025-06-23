@@ -2020,3 +2020,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         fileInput.click();
     });
+
+window.auth = auth;
+window.db = db;
+window.userId = userId;
+window.checkUserRole = checkUserRole;
