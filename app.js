@@ -60,6 +60,16 @@ async function checkUserRole(uid) {
     return userDoc.exists() ? userDoc.data().role || "user" : "user";
 }
 
+// Actualizar rol de otro usuario (solo para admins)
+async function setAdminRole(targetUserId, isAdmin) {
+  if (userRole !== "admin") return false;
+
+  await updateDoc(doc(db, "users", targetUserId), {
+    role: isAdmin ? "admin" : "user"
+  });
+  return true;
+}
+
 // Función para actualizar el rol de un usuario (solo para admins)
 async function updateUserRole(email, newRole) {
     try {
