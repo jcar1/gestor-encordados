@@ -1,4 +1,5 @@
 // Configuración de Firebase
+// Asegúrate de que esta configuración coincida con la tuya
 const firebaseConfig = {
     apiKey: "AIzaSyBWRLU0AWoZtxRGSRNko3U8Rmip5Oz0h30",
     authDomain: "gestion-de-encordados.firebaseapp.com",
@@ -11,22 +12,18 @@ const firebaseConfig = {
 
 // Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getAuth, 
+import {
+    getAuth,
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence,
     signOut,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-let userRole = null;
 
-// Observador de estado de autenticación
-
-import { 
-    getFirestore, 
-    collection, 
-    collectionGroup,
+import {
+    getFirestore,
+    collection,
     doc,
     getDoc,
     setDoc,
@@ -35,1827 +32,1471 @@ import {
     getDocs,
     query,
     where,
-    orderBy,
-    Timestamp,
-    writeBatch,
-    addDoc,
-    onSnapshot,
-    initializeFirestore
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-// Configuración mejorada de Firestore
-const firestoreSettings = {
-    experimentalForceLongPolling: true,
-    merge: true
-};
+// Variables globales para Firebase
+let app;
+let db;
+let auth;
+let userRole = null;
+let currentUserId = null; // Para almacenar el UID del usuario actual
 
-// Inicialización de Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = initializeFirestore(app, firestoreSettings);
-
-// Función para verificar el rol del usuario (admin/user)
-async function checkUserRole(uid) {
-    const userDoc = await getDoc(doc(db, "users", uid));
-    return userDoc.exists() ? userDoc.data().role || "user" : "user";
+// Inicializar Firebase
+try {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+} catch (error) {
+    console.error("Error al inicializar Firebase:", error);
+    showMessage("Error al inicializar la aplicación. Por favor, recarga la página.", 'error');
 }
 
-// Actualizar rol de otro usuario (solo para admins)
-async function setAdminRole(targetUserId, isAdmin) {
-  if (userRole !== "admin") return false;
+// Global variables for Firestore (MUST BE USED)
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const firebaseConfigRuntime = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
 
-  await updateDoc(doc(db, "users", targetUserId), {
-    role: isAdmin ? "admin" : "user"
-  });
-  return true;
-}
-
-// Función para actualizar el rol de un usuario (solo para admins)
-async function updateUserRole(email, newRole) {
-    try {
-        const user = await getAuth().getUserByEmail(email);
-        await setDoc(doc(db, "users", user.uid), { role: newRole }, { merge: true });
-        return true;
-    } catch (error) {
-        console.error("Error updating role:", error);
-        return false;
+// Utilidad para mostrar mensajes al usuario
+function showMessage(message, type = 'info') {
+    const messageContainer = document.getElementById('messageContainer');
+    if (!messageContainer) {
+        console.warn('No se encontró el contenedor de mensajes. Mensaje:', message);
+        return;
     }
-}
 
-// Referencias a colecciones
-let jugadoresCollectionRef;
-let solicitudesCollectionRef;
-let userId = null;
-let isAuthReady = false;
+    // Limpiar mensajes anteriores
+    messageContainer.innerHTML = '';
+    messageContainer.className = 'fixed top-4 right-4 p-4 rounded-lg shadow-md z-50 transition-transform transform';
 
-// Variables para gráficos
-let pagoChart = null;
-let entregaChart = null;
-let ingresosChart = null;
-let jugadoresChart = null;
-
-// Suscripciones
-let unsubscribeJugadores = null;
-let unsubscribeSolicitudes = null;
-let unsubscribeJugadoresLista = null;
-
-// Datos actuales
-let currentSolicitudesData = [];
-let jugadoresData = [];
-
-// --- LOGIN Y LOGOUT ---
-// Login
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const loginError = document.getElementById('loginError');
-    loginError.textContent = '';
-    try {
-        await setPersistence(auth, browserLocalPersistence);
-        await signInWithEmailAndPassword(auth, email, password);
-        document.getElementById('loginContainer').style.display = 'none';
-        document.querySelector('.container').style.display = '';
-        document.getElementById('logoutBtn').style.display = '';
-        initApplication();
-    } catch (error) {
-        loginError.textContent = 'Usuario o contraseña incorrectos';
+    let bgColor = '';
+    let textColor = '';
+    switch (type) {
+        case 'success':
+            bgColor = 'bg-green-500';
+            textColor = 'text-white';
+            break;
+        case 'error':
+            bgColor = 'bg-red-500';
+            textColor = 'text-white';
+            break;
+        case 'warning':
+            bgColor = 'bg-yellow-500';
+            textColor = 'text-gray-800';
+            break;
+        case 'info':
+        default:
+            bgColor = 'bg-blue-500';
+            textColor = 'text-white';
+            break;
     }
-});
 
-// Logout
-document.getElementById('logoutBtn').onclick = () => {
-    signOut(auth);
-};
+    messageContainer.classList.add(bgColor, textColor, 'translate-x-0');
+    messageContainer.textContent = message;
 
-// --- FIN LOGIN Y LOGOUT ---
+    setTimeout(() => {
+        messageContainer.classList.remove('translate-x-0');
+        messageContainer.classList.add('translate-x-full');
+        // Ocultar después de la transición
+        messageContainer.addEventListener('transitionend', () => {
+            if (messageContainer.classList.contains('translate-x-full')) {
+                messageContainer.innerHTML = '';
+                messageContainer.className = ''; // Limpiar clases para futuras animaciones
+            }
+        }, { once: true });
+    }, 5000);
+}
 
 // Observador de estado de autenticación
 onAuthStateChanged(auth, async (user) => {
     if (user) {
-        userId = user.uid;
-        document.getElementById('userIdDisplay').textContent = userId;
-        
-		// 👉 Cargar rol del usuario
-        userRole = await checkUserRole(userId);
-        if (userRole === "admin") {
-            document.getElementById("adminPanel").style.display = "block";
-        }
-		
-		document.getElementById('loginContainer').style.display = 'none';
-        document.querySelector('.container').style.display = '';
-        document.getElementById('logoutBtn').style.display = '';
-        if (!isAuthReady) {
-            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
-            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
-            isAuthReady = true;
-            loadInitialData();
-        }
-    } else {
-        document.getElementById('userIdDisplay').textContent = "No autenticado";
-        document.getElementById('loginContainer').style.display = '';
-        document.querySelector('.container').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'none';
-        isAuthReady = false;
-    }
-});
-
-function checkAuth() {
-    if (!isAuthReady) {
-        showModalMessage("La aplicación no está autenticada correctamente", "error");
-        return false;
-    }
-    return true;
-}
-
-// --- FUNCIONES DE FECHA MEJORADAS ---
-function formatDateForDisplay(timestamp) {
-    if (!timestamp || !timestamp.toDate) return '-';
-    const date = timestamp.toDate();
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
-}
-
-function parseDateInput(dateStr) {
-    if (!dateStr) return null;
-    const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? null : date;
-}
-
-// --- MANEJO DE PESTAÑAS ---
-window.showTab = function(tabId) {
-    // Ocultar todas las pestañas
-    document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
-    document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
-    
-    // Mostrar la pestaña seleccionada
-    const currentTab = document.getElementById(tabId);
-    if (currentTab) currentTab.style.display = 'block';
-    
-    // Resaltar el botón activo
-    const currentButton = document.querySelector(`.tab-button[onclick="showTab('${tabId}')"]`);
-    if (currentButton) currentButton.classList.add('active');
-    
-    if (!isAuthReady) return;
-
-    // Cargar datos según la pestaña
-    switch(tabId) {
-        case 'verSolicitudesTab': 
-            loadSolicitudes();
-            break;
-        case 'estadisticasTab': 
-            calcularYMostrarEstadisticas();
-            break;
-        case 'verJugadoresTab': 
-            loadJugadoresParaLista();
-            break;
-        case 'nuevaSolicitudTab':
-        default:
-            loadJugadoresParaDropdown();
-            break;
-    }
-}
-
-// --- MODALES ---
-const messageModal = document.getElementById('messageModal');
-const modalMessageText = document.getElementById('modalMessageText');
-const modalCloseButton = document.getElementById('modalCloseButton');
-const confirmModal = document.getElementById('confirmModal');
-const confirmModalText = document.getElementById('confirmModalText');
-const confirmModalConfirm = document.getElementById('confirmModalConfirm');
-const confirmModalCancel = document.getElementById('confirmModalCancel');
-const editJugadorModal = document.getElementById('editJugadorModal');
-const formEditJugador = document.getElementById('formEditJugador');
-const cancelEditJugador = document.getElementById('cancelEditJugador');
-const editSolicitudModal = document.getElementById('editSolicitudModal');
-const formEditSolicitud = document.getElementById('formEditSolicitud');
-const cancelEditSolicitud = document.getElementById('cancelEditSolicitud');
-
-function showModalMessage(message, type = 'info') {
-    modalMessageText.textContent = message;
-    modalMessageText.className = 'text-lg mb-4';
-    
-    if (type === 'error') modalMessageText.classList.add('text-red-600');
-    else if (type === 'success') modalMessageText.classList.add('text-green-600');
-    else if (type === 'warning') modalMessageText.classList.add('text-yellow-600');
-    
-    messageModal.style.display = 'flex';
-}
-
-modalCloseButton.onclick = () => messageModal.style.display = 'none';
-
-let confirmCallback = null;
-function showConfirmModal(message, callback) {
-    confirmModalText.textContent = message;
-    confirmCallback = callback;
-    confirmModal.style.display = 'flex';
-}
-
-confirmModalConfirm.onclick = () => {
-    if (confirmCallback) confirmCallback();
-    confirmModal.style.display = 'none';
-};
-
-confirmModalCancel.onclick = () => confirmModal.style.display = 'none';
-
-window.onclick = (event) => { 
-    if (event.target == messageModal) messageModal.style.display = 'none';
-    if (event.target == confirmModal) confirmModal.style.display = 'none';
-    if (event.target == editJugadorModal) editJugadorModal.style.display = 'none';
-    if (event.target == editSolicitudModal) editSolicitudModal.style.display = 'none';
-};
-
-cancelEditJugador.onclick = () => editJugadorModal.style.display = 'none';
-cancelEditSolicitud.onclick = () => editSolicitudModal.style.display = 'none';
-
-// --- VALIDACIÓN DE FORMULARIOS ---
-function validateForm(formData, requiredFields) {
-    const errors = [];
-    requiredFields.forEach(field => {
-        if (!formData[field] || formData[field].toString().trim() === '') {
-            errors.push(`El campo ${field} es obligatorio`);
-        }
-    });
-    return errors;
-}
-
-function clearErrorMessages(formId) {
-    document.querySelectorAll(`#${formId} .error-message`).forEach(el => {
-        el.textContent = '';
-    });
-}
-
-function showError(fieldId, message) {
-    const errorElement = document.getElementById(`error-${fieldId}`);
-    if (errorElement) {
-        errorElement.textContent = message;
-    }
-}
-
-// --- PRECIOS SUGERIDOS ---
-const PRECIO_SOLO_MANO_OBRA = 5;
-const PRECIO_CON_CUERDA = 10;
-
-function actualizarPrecioSugerido(formIdPrefix) {
-    const cuerdaIncluidaCheckbox = document.getElementById(`${formIdPrefix}CuerdaIncluida`);
-    const precioInput = document.getElementById(`${formIdPrefix}Precio`);
-    if (cuerdaIncluidaCheckbox && precioInput) {
-        if (cuerdaIncluidaCheckbox.checked) {
-            precioInput.value = PRECIO_CON_CUERDA;
-        } else {
-            precioInput.value = PRECIO_SOLO_MANO_OBRA;
-        }
-    }
-}
-
-document.getElementById('solicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('solicitud'));
-document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('editSolicitud'));
-
-// --- AUTOCOMPLETADO DE JUGADORES ---
-// [El código anterior permanece igual hasta la función setupAutocomplete]
-
-// --- AUTOCOMPLETADO DE JUGADORES MEJORADO ---
-function setupAutocomplete() {
-  }
-
-// --- GESTIÓN DE JUGADORES ---
-function loadJugadoresParaDropdown() {
-    if (!checkAuth() || !jugadoresCollectionRef) return;
-
-    getDocs(query(jugadoresCollectionRef, orderBy("nombreCompleto"))).then(snapshot => {
-        jugadoresData = [];
-        snapshot.forEach(doc => {
-            jugadoresData.push({ id: doc.id, ...doc.data() });
-        });
-
-        
-    }).catch(error => {
-        console.error("Error cargando jugadores para dropdown:", error);
-        showModalMessage("Error al cargar jugadores", "error");
-    });
-}
-
-function loadJugadoresParaFiltros() {
-    if (!isAuthReady || !jugadoresCollectionRef) return;
-    
-    const filtroJugador = document.getElementById('filtroJugador');
-    if (!filtroJugador) return;
-    
-    // Limpiar opciones excepto la primera
-    while (filtroJugador.options.length > 1) {
-        filtroJugador.remove(1);
-    }
-    
-    getDocs(query(jugadoresCollectionRef, orderBy("nombreCompleto"))).then(snapshot => {
-        snapshot.forEach(doc => {
-            const jugador = doc.data();
-            const option = document.createElement('option');
-            option.value = doc.id;
-            option.textContent = `${jugador.codigo} - ${jugador.nombreCompleto}`;
-            filtroJugador.appendChild(option);
-        });
-    }).catch(error => {
-        console.error("Error cargando jugadores para filtros:", error);
-    });
-}
-
-const formRegistrarJugador = document.getElementById('formRegistrarJugador');
-formRegistrarJugador.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!isAuthReady) {
-        showModalMessage("La base de datos no está lista", "error");
-        return;
-    }
-
-    clearErrorMessages('formRegistrarJugador');
-
-    const formData = {
-        codigo: formRegistrarJugador.jugadorCodigo.value.trim(),
-        nombreCompleto: formRegistrarJugador.jugadorNombreCompleto.value.trim(),
-        telefono: formRegistrarJugador.jugadorTelefono.value.trim(),
-        email: formRegistrarJugador.jugadorEmail.value.trim(),
-        marcaRaqueta: formRegistrarJugador.jugadorMarcaRaqueta.value.trim(),
-        modeloRaqueta: formRegistrarJugador.jugadorModeloRaqueta.value.trim(),
-        tensionVertical: parseFloat(formRegistrarJugador.jugadorTensionVertical.value) || null,
-        tensionHorizontal: parseFloat(formRegistrarJugador.jugadorTensionHorizontal.value) || null,
-        tipoCuerda: formRegistrarJugador.jugadorTipoCuerda.value.trim()
-    };
-
-    // Validaciones
-    const errors = validateForm(formData, ['codigo', 'nombreCompleto']);
-    
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        errors.push("El email no tiene un formato válido");
-        showError('email', "El email no tiene un formato válido");
-    }
-
-    // Verificar si el código ya existe
-    const codigoExists = jugadoresData.some(j => j.codigo === formData.codigo && j.id !== formRegistrarJugador.jugadorId?.value);
-    if (codigoExists) {
-        errors.push("El código de jugador ya existe");
-        showError('codigo', "Este código ya está en uso");
-    }
-
-    // Verificar si el nombre ya existe
-    const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === formData.nombreCompleto.toLowerCase() && j.id !== formRegistrarJugador.jugadorId?.value);
-    if (nombreExists) {
-        errors.push("El nombre de jugador ya existe");
-        showError('nombreCompleto', "Este nombre ya está registrado");
-    }
-
-    if (errors.length > 0) {
-        showModalMessage(errors.join("<br>"), "error");
-        return;
-    }
-
-    try {
-        await addDoc(jugadoresCollectionRef, {
-            ...formData,
-            fechaRegistro: Timestamp.now()
-        });
-        showModalMessage("Jugador registrado correctamente", "success");
-        formRegistrarJugador.reset();
-    } catch (error) {
-        console.error("Error registrando jugador:", error);
-        showModalMessage("Error al registrar jugador", "error");
-    }
-});
-
-function loadJugadoresParaLista() {
-    if (!isAuthReady || !jugadoresCollectionRef) return;
-    
-    const listaJugadoresBody = document.getElementById('listaJugadores');
-    if (!listaJugadoresBody) return;
-    
-    listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>';
-    
-    if (unsubscribeJugadoresLista) unsubscribeJugadoresLista();
-    
-    unsubscribeJugadoresLista = onSnapshot(
-        query(jugadoresCollectionRef, orderBy("nombreCompleto")), 
-        (snapshot) => {
-            jugadoresData = [];
-            
-            if (snapshot.empty) {
-                listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">No hay jugadores registrados.</td></tr>';
-                return;
-            }
-            
-            listaJugadoresBody.innerHTML = '';
-            
-            snapshot.forEach(docSnap => {
-               
-                const jugador = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
-                jugadoresData.push(jugador);                            
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors duration-150";
-                
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">${jugador.codigo}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-700">
-                        ${jugador.nombreCompleto}
-                        <span class="block text-xs text-gray-500">${jugador.telefono || 'Sin teléfono'}</span>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${jugador.email || '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        <div class="flex items-center">
-                            ${jugador.marcaRaqueta || '-'} 
-                            ${jugador.modeloRaqueta ? `<span class="ml-1 text-xs">(${jugador.modeloRaqueta})</span>` : ''}
-                        </div>
-                        ${jugador.tensionVertical ? 
-                            `<span class="text-xs bg-gray-100 px-2 py-1 rounded">${jugador.tensionVertical}/${jugador.tensionHorizontal || '?'} lbs</span>` : ''}
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(jugador.fechaRegistro)}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        <button onclick="openEditJugadorModal('${jugador.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button onclick="confirmDeleteJugador('${jugador.id}', '${jugador.nombreCompleto.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </td>
-                `;
-                
-                listaJugadoresBody.appendChild(tr);
-            });
-        }, 
-        error => {
-            console.error("Error cargando lista de jugadores:", error);
-            listaJugadoresBody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-red-500">Error al cargar jugadores.</td></tr>';
-        }
-    );
-}
-
-window.openEditJugadorModal = async (jugadorId) => {
-    if (!isAuthReady) return;
-
-    try {
-        let jugadorDocRef;
-        // Busca el jugador en jugadoresData
-        const jugador = jugadoresData.find(j => j.id === jugadorId);
-        if (userRole === 'admin' && jugador && jugador.refPath) {
-            jugadorDocRef = doc(db, jugador.refPath);
-        } else {
-            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-        }
-
-        const docSnap = await getDoc(jugadorDocRef);
-
-        if (docSnap.exists()) {
-            const jugadorData = docSnap.data();
-
-            formEditJugador.editJugadorId.value = jugadorId;
-            formEditJugador.editJugadorCodigo.value = jugadorData.codigo;
-            formEditJugador.editJugadorNombreCompleto.value = jugadorData.nombreCompleto;
-            formEditJugador.editJugadorTelefono.value = jugadorData.telefono || '';
-            formEditJugador.editJugadorEmail.value = jugadorData.email || '';
-            formEditJugador.editJugadorMarcaRaqueta.value = jugadorData.marcaRaqueta || '';
-            formEditJugador.editJugadorModeloRaqueta.value = jugadorData.modeloRaqueta || '';
-            formEditJugador.editJugadorTensionVertical.value = jugadorData.tensionVertical || '';
-            formEditJugador.editJugadorTensionHorizontal.value = jugadorData.tensionHorizontal || '';
-            formEditJugador.editJugadorTipoCuerda.value = jugadorData.tipoCuerda || '';
-
-            editJugadorModal.style.display = 'flex';
-        } else {
-            showModalMessage("Jugador no encontrado.", "error");
-        }
-    } catch (error) {
-        showModalMessage(`Error al cargar jugador: ${error.message}`, "error");
-    }
-};
-
-formEditJugador.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!isAuthReady) return;
-    
-    clearErrorMessages('formEditJugador');
-
-    const jugadorId = formEditJugador.editJugadorId.value;
-    const codigo = formEditJugador.editJugadorCodigo.value.trim();
-    const nombreCompleto = formEditJugador.editJugadorNombreCompleto.value.trim();
-    const email = formEditJugador.editJugadorEmail.value.trim();
-    
-    // Validaciones
-    if (!codigo) {
-        showError('editCodigo', "El código de jugador es obligatorio");
-        return;
-    }
-    
-    if (!nombreCompleto) {
-        showError('editNombreCompleto', "El nombre completo es obligatorio");
-        return;
-    }
-    
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showError('editEmail', "El email no tiene un formato válido");
-        return;
-    }
-
-    // Verificar si el código ya existe (excluyendo el jugador actual)
-    const codigoExists = jugadoresData.some(j => j.codigo === codigo && j.id !== jugadorId);
-    if (codigoExists) {
-        showError('editCodigo', "Este código ya está en uso");
-        return;
-    }
-
-    // Verificar que el código sea un número
-    if (isNaN(parseInt(codigo))) {
-        showError('editCodigo', "El código debe ser un número");
-        return;
-    }
-
-    // Verificar si el nombre ya existe (excluyendo el jugador actual)
-    const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === nombreCompleto.toLowerCase() && j.id !== jugadorId);
-    if (nombreExists) {
-        showError('editNombreCompleto', "Este nombre ya está registrado");
-        return;
-    }
-
-    try {
-        
-        let jugadorDocRef;
-        const jugador = jugadoresData.find(j => j.id === jugadorId);
-        if (userRole === 'admin' && jugador && jugador.refPath) {
-            jugadorDocRef = doc(db, jugador.refPath);
-        } else {
-            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-}
-        await updateDoc(jugadorDocRef, {
-            codigo,
-            nombreCompleto,
-            telefono: formEditJugador.editJugadorTelefono.value.trim(),
-            email,
-            marcaRaqueta: formEditJugador.editJugadorMarcaRaqueta.value.trim(),
-            modeloRaqueta: formEditJugador.editJugadorModeloRaqueta.value.trim(),
-            tensionVertical: parseFloat(formEditJugador.editJugadorTensionVertical.value) || null,
-            tensionHorizontal: parseFloat(formEditJugador.editJugadorTensionHorizontal.value) || null,
-            tipoCuerda: formEditJugador.editJugadorTipoCuerda.value.trim(),
-            fechaUltimaActualizacion: Timestamp.now()
-        });
-        
-        showModalMessage("Jugador actualizado correctamente.", "success");
-        editJugadorModal.style.display = 'none';
-        loadJugadoresParaFiltros(); // Actualizar filtros después de editar
-    } catch (error) {
-        showModalMessage(`Error al actualizar jugador: ${error.message}`, "error");
-    }
-});
-
-window.confirmDeleteJugador = (jugadorId, nombreJugador) => {
-    const nombreDecodificado = nombreJugador.replace(/\\'/g, "'");
-    
-    showConfirmModal(
-        `¿Está seguro de que desea eliminar al jugador "${nombreDecodificado}"? Esta acción no se puede deshacer.`, 
-        async () => {
-            if (!isAuthReady) return;
-            
-            try {
-                // Verificar si el jugador tiene solicitudes asociadas
-                const q = query(solicitudesCollectionRef, where("jugadorId", "==", jugadorId));
-                const querySnapshot = await getDocs(q);
-                
-                if (!querySnapshot.empty) {
-                    showModalMessage("No se puede eliminar el jugador porque tiene solicitudes asociadas.", "error");
-                    return;
-                }
-                
-                
-                let jugadorDocRef;
-                const jugador = jugadoresData.find(j => j.id === jugadorId);
-                if (userRole === 'admin' && jugador && jugador.refPath) {
-                    jugadorDocRef = doc(db, jugador.refPath);
-                } else {
-                    jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-            }
-                await deleteDoc(jugadorDocRef);
-
-                showModalMessage(`Jugador "${nombreDecodificado}" eliminado correctamente.`, "success");
-                loadJugadoresParaFiltros(); // Actualizar filtros después de eliminar
-            } catch (error) {
-                showModalMessage(`Error al eliminar jugador: ${error.message}`, "error");
-            }
-        }
-    );
-};
-
-// --- GESTIÓN DE SOLICITUDES DE ENCORDADO ---
-const formNuevaSolicitud = document.getElementById('formNuevaSolicitud');
-formNuevaSolicitud.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const jugadorId = formNuevaSolicitud.jugadorId.value;
-    const jugadorNombre = formNuevaSolicitud.jugadorNombre.value.trim();
-
-    if (!jugadorId || !jugadorNombre) {
-        showError('jugadorId', "Debe seleccionar un jugador válido");
-        return;
-    }
-
-    const formData = {
-        jugadorId,
-        nombreJugador: jugadorNombre,
-        marcaRaqueta: formNuevaSolicitud.marcaRaqueta.value.trim(),
-        modeloRaqueta: formNuevaSolicitud.modeloRaqueta.value.trim(),
-        tensionVertical: parseFloat(formNuevaSolicitud.tensionVertical.value),
-        tensionHorizontal: parseFloat(formNuevaSolicitud.tensionHorizontal.value),
-        tipoCuerda: formNuevaSolicitud.tipoCuerda.value.trim(),
-        cuerdaIncluida: formNuevaSolicitud.cuerdaIncluida.checked,
-        fechaSolicitud: parseDateInput(formNuevaSolicitud.fechaSolicitud.value),
-        fechaEntregaEstimada: parseDateInput(formNuevaSolicitud.fechaEntregaEstimada.value),
-        precio: parseFloat(formNuevaSolicitud.precio.value) || 0,
-        estadoPago: formNuevaSolicitud.estadoPago.value,
-        estadoEntrega: "Pendiente",
-        notas: formNuevaSolicitud.notas.value.trim(),
-        fechaPago: null // No hay fecha de pago inicialmente
-    };
-
-    // Validaciones
-    const errors = validateForm(formData, [
-        'marcaRaqueta', 'tensionVertical', 'tensionHorizontal', 
-        'fechaSolicitud', 'estadoPago'
-    ]);
-
-    if (isNaN(formData.tensionVertical)) {
-        errors.push("La tensión vertical debe ser un número válido");
-        showError('tensionVertical', "Debe ser un número válido");
-    }
-
-    if (isNaN(formData.tensionHorizontal)) {
-        errors.push("La tensión horizontal debe ser un número válido");
-        showError('tensionHorizontal', "Debe ser un número válido");
-    }
-
-    if (!formData.fechaSolicitud) {
-        errors.push("La fecha de solicitud no es válida");
-        showError('fechaSolicitud', "Fecha no válida");
-    }
-
-    if (errors.length > 0) {
-        showModalMessage(errors.join("<br>"), "error");
-        return;
-    }
-
-    try {
-        await addDoc(solicitudesCollectionRef, {
-            ...formData,
-            fechaSolicitud: Timestamp.fromDate(formData.fechaSolicitud),
-            fechaEntregaEstimada: formData.fechaEntregaEstimada ? Timestamp.fromDate(formData.fechaEntregaEstimada) : null,
-            fechaCreacion: Timestamp.now(),
-            fechaUltimaActualizacion: Timestamp.now()
-        });
-        
-        showModalMessage("Solicitud registrada correctamente", "success");
-        formNuevaSolicitud.reset();
-        // Restablecer fecha actual
-        document.getElementById('solicitudFechaSolicitud').valueAsDate = new Date();
-        actualizarPrecioSugerido('solicitud');
-        // Limpiar autocompletado
-        document.getElementById('solicitudJugadorNombre').value = '';
-        document.getElementById('solicitudJugadorId').value = '';
-    } catch (error) {
-        console.error("Error registrando solicitud:", error);
-        showModalMessage("Error al registrar solicitud", "error");
-    }
-});
-
-function loadSolicitudes() {
-    if (!isAuthReady || !solicitudesCollectionRef) return;
-    
-    const listaSolicitudesBody = document.getElementById('listaSolicitudes');
-    if (!listaSolicitudesBody) return;
-    
-    listaSolicitudesBody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>';
-    
-    let conditions = [];
-    
-    // Aplicar filtros
-    const filtroJugadorVal = document.getElementById('filtroJugador').value;
-    const filtroEstadoPagoVal = document.getElementById('filtroEstadoPago').value;
-    const filtroEstadoEntregaVal = document.getElementById('filtroEstadoEntrega').value;
-    const filtroFechaDesdeVal = document.getElementById('filtroFechaSolicitudDesde').value;
-    const filtroFechaHastaVal = document.getElementById('filtroFechaSolicitudHasta').value;
-    const filtroFechaPagoDesdeVal = document.getElementById('filtroFechaPagoDesde').value;
-    const filtroFechaPagoHastaVal = document.getElementById('filtroFechaPagoHasta').value;
-
-    // Filtro por jugador - CORRECCIÓN PRINCIPAL
-    if (filtroJugadorVal) {
-        conditions.push(where("jugadorId", "==", filtroJugadorVal));
-    }
-    
-    if (filtroEstadoPagoVal) conditions.push(where("estadoPago", "==", filtroEstadoPagoVal));
-    if (filtroEstadoEntregaVal) conditions.push(where("estadoEntrega", "==", filtroEstadoEntregaVal));
-    
-    if (filtroFechaDesdeVal) {
-        conditions.push(where("fechaSolicitud", ">=", Timestamp.fromDate(new Date(filtroFechaDesdeVal))));
-    }
-    
-    if (filtroFechaHastaVal) {
-        const hastaDate = new Date(filtroFechaHastaVal);
-        hastaDate.setDate(hastaDate.getDate() + 1);
-        conditions.push(where("fechaSolicitud", "<", Timestamp.fromDate(hastaDate)));
-    }
-    
-    if (filtroFechaPagoDesdeVal) {
-        conditions.push(where("fechaPago", ">=", Timestamp.fromDate(new Date(filtroFechaPagoDesdeVal))));
-    }
-    
-    if (filtroFechaPagoHastaVal) {
-        const hastaDate = new Date(filtroFechaPagoHastaVal);
-        hastaDate.setDate(hastaDate.getDate() + 1);
-        conditions.push(where("fechaPago", "<", Timestamp.fromDate(hastaDate)));
-    }
-    
-    // Crear consulta
-    let q;
-    if (conditions.length > 0) {
-        q = query(
-            solicitudesCollectionRef, 
-            ...conditions, 
-            orderBy("fechaSolicitud", "desc")
-        );
-    } else {
-        q = query(
-            solicitudesCollectionRef, 
-            orderBy("fechaSolicitud", "desc")
-        );
-    }
-
-    if (unsubscribeSolicitudes) unsubscribeSolicitudes();
-    
-    unsubscribeSolicitudes = onSnapshot(q, 
-        (snapshot) => {
-            currentSolicitudesData = [];
-            
-            if (snapshot.empty) {
-                listaSolicitudesBody.innerHTML = '<tr><td colspan="10" class="text-center p-4 text-gray-500">No hay solicitudes que coincidan con los filtros.</td></tr>';
-                actualizarResumenSolicitudes();
-                calcularYMostrarEstadisticas();
-                return;
-            }
-            
-            listaSolicitudesBody.innerHTML = '';
-            
-            snapshot.forEach(docSnap => {
-                const solicitud = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
-                currentSolicitudesData.push(solicitud);
-                
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors duration-150";
-                
-                const pagoClass = solicitud.estadoPago === 'Pagado' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
-                
-                let entregaClass = 'bg-gray-100 text-gray-800';
-                switch(solicitud.estadoEntrega) {
-                    case 'Pendiente': entregaClass = 'bg-red-100 text-red-800'; break;
-                    case 'En Proceso': entregaClass = 'bg-blue-100 text-blue-800'; break;
-                    case 'Listo para Recoger': entregaClass = 'bg-purple-100 text-purple-800'; break;
-                    case 'Entregado': entregaClass = 'bg-green-100 text-green-800'; break;
-                    case 'Cancelado': entregaClass = 'bg-gray-400 text-white'; break;
-                }
-                
-                // Mostrar indicador de pago si tiene fecha de pago
-                const pagoIndicator = solicitud.fechaPago ? '<span class="paid-indicator"></span>' : '';
-                
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap">
-                        <input type="checkbox" class="solicitud-checkbox form-checkbox h-4 w-4" value="${solicitud.id}">
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${solicitud.nombreJugador || solicitud.jugadorId}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.marcaRaqueta} ${solicitud.modeloRaqueta || ''}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.tensionVertical || 'N/A'} / ${solicitud.tensionHorizontal || 'N/A'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaSolicitud)}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${formatDateForDisplay(solicitud.fechaEntregaEstimada)}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${solicitud.precio != null ? solicitud.precio.toFixed(2) + '€' : '-'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${pagoClass}">${pagoIndicator}${solicitud.estadoPago}</span>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${entregaClass}">${solicitud.estadoEntrega}</span>
-                    </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium">
-                        <button onclick="openEditSolicitudModal('${solicitud.id}')" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors duration-150">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button onclick="confirmDeleteSolicitud('${solicitud.id}')" class="text-red-600 hover:text-red-900 transition-colors duration-150">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </td>
-                `;
-                
-                listaSolicitudesBody.appendChild(tr);
-            });
-            
-            // Manejar el evento de seleccionar todos
-            document.getElementById('selectAllSolicitudes').addEventListener('change', function() {
-                const checkboxes = document.querySelectorAll('.solicitud-checkbox');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-            });
-
-            // Manejar cuando se deselecciona un checkbox individual
-            listaSolicitudesBody.addEventListener('change', (e) => {
-                if (e.target.classList.contains('solicitud-checkbox')) {
-                    const allChecked = document.querySelectorAll('.solicitud-checkbox:checked').length;
-                    const totalCheckboxes = document.querySelectorAll('.solicitud-checkbox').length;
-                    document.getElementById('selectAllSolicitudes').checked = allChecked === totalCheckboxes && totalCheckboxes > 0;
-                }
-            });
-            
-            actualizarResumenSolicitudes();
-            calcularYMostrarEstadisticas();
-        }, 
-        (error) => {
-            console.error("Error cargando solicitudes:", error);
-            currentSolicitudesData = [];
-            listaSolicitudesBody.innerHTML = `<tr><td colspan="10" class="text-center p-4 text-red-500">Error al cargar: ${error.message}</td></tr>`;
-            
-            if (error.code === 'failed-precondition') {
-                showModalMessage("Error: Puede necesitar crear un índice compuesto en Firestore para esta consulta.", "error");
-            }
-            
-            actualizarResumenSolicitudes();
-            calcularYMostrarEstadisticas();
-        }
-    );
-}
-
-function actualizarResumenSolicitudes() {
-    const totalSolicitudes = currentSolicitudesData.length;
-    const solicitudesPagadas = currentSolicitudesData.filter(s => s.estadoPago === 'Pagado').length;
-    const solicitudesPendientes = totalSolicitudes - solicitudesPagadas;
-    
-    // Calcular totales monetarios
-    const totalPagado = currentSolicitudesData
-        .filter(s => s.estadoPago === 'Pagado')
-        .reduce((sum, s) => sum + (s.precio || 0), 0);
-    
-    const totalPendiente = currentSolicitudesData
-        .filter(s => s.estadoPago !== 'Pagado')
-        .reduce((sum, s) => sum + (s.precio || 0), 0);
-    
-    const totalGeneral = currentSolicitudesData
-        .reduce((sum, s) => sum + (s.precio || 0), 0);
-    
-    document.getElementById('resumenTotalSolicitudes').textContent = totalSolicitudes;
-    document.getElementById('resumenSolicitudesPagadas').textContent = `${solicitudesPagadas} (${totalPagado.toFixed(2)}€)`;
-    document.getElementById('resumenSolicitudesPendientes').textContent = `${solicitudesPendientes} (${totalPendiente.toFixed(2)}€)`;
-    document.getElementById('resumenTotalIngresos').textContent = totalGeneral.toFixed(2) + '€';
-}
-
-window.openEditSolicitudModal = async (solicitudId) => {
-    if (!isAuthReady) return;
-    
-    try {
-        let solicitudDocRef;
-        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-        if (userRole === 'admin' && solicitud && solicitud.refPath) {
-          solicitudDocRef = doc(db, solicitud.refPath);
-        } else {
-            solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-        }
-        const docSnap = await getDoc(solicitudDocRef);
-        
-        if (docSnap.exists()) {
-            const s = docSnap.data();
-            
-            formEditSolicitud.editSolicitudId.value = solicitudId;
-            document.getElementById('editSolicitudJugadorIdDisplay').value = s.nombreJugador || s.jugadorId;
-            formEditSolicitud.editSolicitudMarcaRaqueta.value = s.marcaRaqueta || '';
-            formEditSolicitud.editSolicitudModeloRaqueta.value = s.modeloRaqueta || '';
-            formEditSolicitud.editSolicitudTensionVertical.value = s.tensionVertical || '';
-            formEditSolicitud.editSolicitudTensionHorizontal.value = s.tensionHorizontal || '';
-            formEditSolicitud.editSolicitudTipoCuerda.value = s.tipoCuerda || '';
-            formEditSolicitud.editSolicitudCuerdaIncluida.checked = s.cuerdaIncluida || false;
-            
-            formEditSolicitud.editSolicitudFechaSolicitud.value = s.fechaSolicitud ? 
-                new Date(s.fechaSolicitud.toDate()).toISOString().split('T')[0] : '';
-            
-            formEditSolicitud.editSolicitudFechaEntregaEstimada.value = s.fechaEntregaEstimada ? 
-                new Date(s.fechaEntregaEstimada.toDate()).toISOString().split('T')[0] : '';
-            
-            formEditSolicitud.editSolicitudPrecio.value = s.precio != null ? s.precio : '';
-            formEditSolicitud.editSolicitudEstadoPago.value = s.estadoPago;
-            formEditSolicitud.editSolicitudEstadoEntrega.value = s.estadoEntrega;
-            formEditSolicitud.editSolicitudNotas.value = s.notas || '';
-            
-            // Manejar fecha de pago
-            if (s.fechaPago) {
-                formEditSolicitud.editSolicitudFechaPago.value = new Date(s.fechaPago.toDate()).toISOString().split('T')[0];
-            } else {
-                formEditSolicitud.editSolicitudFechaPago.value = '';
-            }
-            
-            editSolicitudModal.style.display = 'flex';
-        } else {
-            showModalMessage("Solicitud no encontrada.", "error");
-        }
-    } catch (error) {
-        showModalMessage(`Error al cargar solicitud: ${error.message}`, "error");
-    }
-};
-
-formEditSolicitud.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!isAuthReady) return;
-    
-    clearErrorMessages('formEditSolicitud');
-
-    const solicitudId = formEditSolicitud.editSolicitudId.value;
-    
-    const formData = {
-        marcaRaqueta: formEditSolicitud.editSolicitudMarcaRaqueta.value.trim(),
-        modeloRaqueta: formEditSolicitud.editSolicitudModeloRaqueta.value.trim(),
-        tensionVertical: parseFloat(formEditSolicitud.editSolicitudTensionVertical.value),
-        tensionHorizontal: parseFloat(formEditSolicitud.editSolicitudTensionHorizontal.value),
-        tipoCuerda: formEditSolicitud.editSolicitudTipoCuerda.value.trim(),
-        cuerdaIncluida: formEditSolicitud.editSolicitudCuerdaIncluida.checked,
-        fechaSolicitud: parseDateInput(formEditSolicitud.editSolicitudFechaSolicitud.value),
-        fechaEntregaEstimada: parseDateInput(formEditSolicitud.editSolicitudFechaEntregaEstimada.value),
-        precio: formEditSolicitud.editSolicitudPrecio.value ? parseFloat(formEditSolicitud.editSolicitudPrecio.value) : null,
-        estadoPago: formEditSolicitud.editSolicitudEstadoPago.value,
-        estadoEntrega: formEditSolicitud.editSolicitudEstadoEntrega.value,
-        notas: formEditSolicitud.editSolicitudNotas.value.trim(),
-        fechaPago: parseDateInput(formEditSolicitud.editSolicitudFechaPago.value)
-    };
-
-    // Validaciones
-    const errors = validateForm(formData, [
-        'marcaRaqueta', 'tensionVertical', 'tensionHorizontal', 
-        'fechaSolicitud', 'estadoPago', 'estadoEntrega'
-    ]);
-
-    if (isNaN(formData.tensionVertical)) {
-        errors.push("La tensión vertical debe ser un número válido");
-        showError('editTensionVertical', "Debe ser un número válido");
-    }
-
-    if (isNaN(formData.tensionHorizontal)) {
-        errors.push("La tensión horizontal debe ser un número válido");
-        showError('editTensionHorizontal', "Debe ser un número válido");
-    }
-
-    if (!formData.fechaSolicitud) {
-        errors.push("La fecha de solicitud no es válida");
-        showError('editFechaSolicitud', "Fecha no válida");
-    }
-
-    // Validar que si hay fecha de pago, el estado sea Pagado
-    if (formData.fechaPago && formData.estadoPago !== 'Pagado') {
-        errors.push("Si hay fecha de pago, el estado debe ser 'Pagado'");
-        showError('editEstadoPago', "Debe ser 'Pagado' si hay fecha de pago");
-    }
-
-    // Validar que si no hay fecha de pago pero el estado es Pagado, establecer fecha actual
-    if (!formData.fechaPago && formData.estadoPago === 'Pagado') {
-        formData.fechaPago = new Date();
-    }
-
-    // Validar que la fecha de pago no sea anterior a la fecha de solicitud
-    if (formData.fechaPago && formData.fechaSolicitud && formData.fechaPago < formData.fechaSolicitud) {
-        errors.push("La fecha de pago no puede ser anterior a la fecha de solicitud");
-        showError('editFechaPago', "No puede ser anterior a la fecha de solicitud");
-    }
-
-    if (errors.length > 0) {
-        showModalMessage(errors.join("<br>"), "error");
-        return;
-    }
-
-    try {
-        let solicitudDocRef;
-        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-        if (userRole === 'admin' && solicitud && solicitud.refPath) {
-          solicitudDocRef = doc(db, solicitud.refPath);
-        } else {
-           solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-    }
-        
-        await updateDoc(solicitudDocRef, {
-            ...formData,
-            fechaSolicitud: Timestamp.fromDate(formData.fechaSolicitud),
-            fechaEntregaEstimada: formData.fechaEntregaEstimada ? Timestamp.fromDate(formData.fechaEntregaEstimada) : null,
-            fechaPago: formData.fechaPago ? Timestamp.fromDate(formData.fechaPago) : null,
-            fechaUltimaActualizacion: Timestamp.now()
-        });
-        
-        showModalMessage("Solicitud actualizada correctamente.", "success");
-        editSolicitudModal.style.display = 'none';
-    } catch (error) {
-        showModalMessage(`Error al actualizar solicitud: ${error.message}`, "error");
-    }
-});
-
-window.confirmDeleteSolicitud = (solicitudId) => {
-    showConfirmModal(
-        "¿Está seguro de que desea eliminar esta solicitud de encordado? Esta acción no se puede deshacer.", 
-        async () => {
-            if (!isAuthReady) return;
-            
-            try {
-                let solicitudDocRef;
-                const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-                if (userRole === 'admin' && solicitud && solicitud.refPath) {
-                     solicitudDocRef = doc(db, solicitud.refPath);
-                } else {
-                    solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-            }
-                await deleteDoc(solicitudDocRef);
-                    
-                showModalMessage("Solicitud eliminada correctamente.", "success");
-            } catch (error) {
-                showModalMessage(`Error al eliminar solicitud: ${error.message}`, "error");
-            }
-        }
-    );
-};
-
-// --- FUNCIONALIDAD PARA SELECCIONAR Y ELIMINAR MULTIPLES SOLICITUDES ---
-document.getElementById('selectAllSolicitudes').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('.solicitud-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = this.checked;
-    });
-});
-
-document.getElementById('btnDeleteSelected').addEventListener('click', function() {
-    const selectedIds = Array.from(document.querySelectorAll('.solicitud-checkbox:checked')).map(cb => cb.value);
-    
-    if (selectedIds.length === 0) {
-        showModalMessage("Por favor seleccione al menos una solicitud para eliminar.", "warning");
-        return;
-    }
-    
-    showConfirmModal(
-        `¿Está seguro de que desea eliminar las ${selectedIds.length} solicitudes seleccionadas? Esta acción no se puede deshacer.`, 
-        async () => {
-            if (!isAuthReady) return;
-            
-            try {
-                const batch = writeBatch(db);
-                
-                selectedIds.forEach(id => {
-                const solicitud = currentSolicitudesData.find(s => s.id === id);
-                let docRef;
-                if (userRole === 'admin' && solicitud && solicitud.refPath) {
-                    docRef = doc(db, solicitud.refPath);
-                } else {
-                    docRef = doc(solicitudesCollectionRef, id);
-                }
-                    batch.delete(docRef);
-            });
-                
-                await batch.commit();
-                showModalMessage(`${selectedIds.length} solicitudes eliminadas correctamente.`, "success");
-                
-                // Desmarcar "Seleccionar todos" después de eliminar
-                document.getElementById('selectAllSolicitudes').checked = false;
-            } catch (error) {
-                showModalMessage(`Error al eliminar solicitudes: ${error.message}`, "error");
-            }
-        }
-    );
-});
-
-// --- FUNCIONALIDAD PARA EXPORTAR CSV ---
-function escapeCsvCell(cellData) {
-    if (cellData == null) return '';
-    const stringData = String(cellData);
-    if (stringData.includes(',') || stringData.includes('"') || stringData.includes('\n') || stringData.includes('\r')) {
-        return `"${stringData.replace(/"/g, '""')}"`;
-    }
-    return stringData;
-}
-
-btnExportCsv.addEventListener('click', async () => {
-    if (!isAuthReady || currentSolicitudesData.length === 0) {
-        showModalMessage("No hay datos de solicitudes para exportar o no está autenticado.", "warning");
-        return;
-    }
-
-    // Obtener información de jugadores para mapear IDs a códigos
-    const jugadoresMap = {};
-    try {
-        const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
-        jugadoresSnapshot.forEach(doc => {
-            jugadoresMap[doc.id] = doc.data().codigo;
-        });
-    } catch (error) {
-        console.error("Error obteniendo datos de jugadores:", error);
-        showModalMessage("Error al obtener datos de jugadores para exportación", "error");
-        return;
-    }
-
-    const headers = [
-        "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
-        "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
-        "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
-        "Estado Entrega", "Notas", "Fecha Pago"
-    ];
-
-    let csvContent = headers.map(escapeCsvCell).join(",") + "\r\n";
-
-    currentSolicitudesData.forEach(solicitud => {
-        const codigoJugador = jugadoresMap[solicitud.jugadorId] || solicitud.jugadorId;
-
-        const row = [
-            codigoJugador,
-            solicitud.nombreJugador,
-            solicitud.marcaRaqueta,
-            solicitud.modeloRaqueta,
-            solicitud.tensionVertical,
-            solicitud.tensionHorizontal,
-            solicitud.tipoCuerda,
-            solicitud.cuerdaIncluida ? "Sí" : "No",
-            formatDateForDisplay(solicitud.fechaSolicitud),
-            formatDateForDisplay(solicitud.fechaEntregaEstimada),
-            solicitud.precio,
-            solicitud.estadoPago,
-            solicitud.estadoEntrega,
-            solicitud.notas,
-            formatDateForDisplay(solicitud.fechaPago)
-        ];
-
-        csvContent += row.map(escapeCsvCell).join(",") + "\r\n";
-    });
-
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    // Crear enlace de descarga
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `solicitudes_encordado_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    
-    // Limpiar
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-
-    showModalMessage("Datos exportados a CSV correctamente.", "success");
-});
-
-// --- FUNCIONALIDAD PARA IMPORTAR CSV ---
-btnImportCsv.addEventListener('click', async () => {
-    if (!isAuthReady || !solicitudesCollectionRef) {
-        showModalMessage("La base de datos no está lista o no está autenticado.", "error"); 
-        return;
-    }
-    
-    if (!importFile.files || importFile.files.length === 0) {
-        showModalMessage("Por favor, seleccione un archivo CSV para importar.", "warning");
-        return;
-    }
-    
-    const file = importFile.files[0];
-    const reader = new FileReader();
-    
-    reader.onload = async (event) => {
+        currentUserId = user.uid; // Guarda el UID del usuario
+        // User is signed in, check their role
+        const userDocRef = doc(db, 'users', user.uid); // Asumiendo una colección 'users' donde el UID es el ID del documento
         try {
-            const csvData = event.target.result;
-            const lines = csvData.split(/\r\n|\n/).filter(line => line.trim() !== '');
-            
-            if (lines.length < 2) {
-                showModalMessage("El archivo CSV está vacío o no tiene datos.", "error");
-                return;
-            }
-            
-            // Definir encabezados esperados
-            const expectedHeaders = [
-                "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
-                "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
-                "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
-                "Estado Entrega", "Notas", "Fecha Pago"
-            ];
-            
-            // Procesar encabezados del CSV
-            const actualHeaders = lines[0].split(',')
-                .map(h => h.trim().replace(/"/g, ''));
-            
-            // Verificar que todos los encabezados esperados estén presentes
-            const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
-            
-            if (missingHeaders.length > 0) {
-                showModalMessage(`Error: Faltan columnas en CSV: ${missingHeaders.join(", ")}`, "error");
-                return;
-            }
-            
-            // Crear mapa de índices de columnas
-            const headerMap = {};
-            actualHeaders.forEach((header, index) => {
-                headerMap[header] = index;
-            });
-            
-            // Obtener mapa de códigos de jugador a IDs
-            const codigoToIdMap = {};
-            const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
-            jugadoresSnapshot.forEach(doc => {
-                codigoToIdMap[doc.data().codigo] = doc.id;
-            });
-            
-            const batch = writeBatch(db);
-            let importCount = 0;
-            let errorCount = 0;
-            const errors = [];
-            
-            // Procesar cada línea (empezando desde la línea 1)
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '') continue;
-                
-                try {
-                    // Dividir por comas, manejando campos entre comillas
-                    const values = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
-                        .map(v => v.trim().replace(/^"|"$/g, ''));
-                    
-                    // Obtener ID de jugador usando el código
-                    const codigoJugador = values[headerMap["Código Jugador"]]?.trim();
-                    const jugadorId = codigoToIdMap[codigoJugador];
-                    
-                    if (!jugadorId) {
-                        errors.push(`Línea ${i+1}: No se encontró jugador con código ${codigoJugador}`);
-                        errorCount++;
-                        continue;
-                    }
-                    
-                    // Procesar campo booleano
-                    const cuerdaIncluidaStr = String(values[headerMap["Cuerda Incluida"]]).toLowerCase();
-                    const cuerdaIncluida = cuerdaIncluidaStr === 'sí' || cuerdaIncluidaStr === 'si' || cuerdaIncluidaStr === 'true' || cuerdaIncluidaStr === '1';
-                    
-                    // Función para parsear fechas (dd/mm/yyyy o d/m/yyyy)
-                    const parseDate = (dateStr) => {
-                        if (!dateStr || dateStr.trim() === '-' || dateStr.trim() === '') return null;
-                        const parts = dateStr.split('/');
-                        if (parts.length !== 3) return null;
-                        return new Date(
-                            parseInt(parts[2]),
-                            parseInt(parts[1]) - 1,
-                            parseInt(parts[0])
-                        );
-                    };
-                    
-                    // Parsear fechas
-                    const fechaSolicitud = parseDate(values[headerMap["Fecha Solicitud"]]);
-                    const fechaEntrega = parseDate(values[headerMap["Fecha Entrega Estimada"]]);
-                    const fechaPago = parseDate(values[headerMap["Fecha Pago"]]);
-                    
-                    if (!fechaSolicitud || isNaN(fechaSolicitud.getTime())) {
-                        errors.push(`Línea ${i+1}: Fecha de solicitud inválida (formato dd/mm/yyyy)`);
-                        errorCount++;
-                        continue;
-                    }
-                    
-                    // Crear objeto de datos para la solicitud
-                    const solicitudData = {
-                        jugadorId: jugadorId,
-                        nombreJugador: values[headerMap["Nombre Jugador"]]?.trim() || "N/A",
-                        marcaRaqueta: values[headerMap["Marca Raqueta"]]?.trim() || "",
-                        modeloRaqueta: values[headerMap["Modelo Raqueta"]]?.trim() || "",
-                        tensionVertical: parseFloat(values[headerMap["Tensión Vertical"]]) || null,
-                        tensionHorizontal: parseFloat(values[headerMap["Tensión Horizontal"]]) || null,
-                        tipoCuerda: values[headerMap["Tipo Cuerda"]]?.trim() || "",
-                        cuerdaIncluida: cuerdaIncluida,
-                        fechaSolicitud: Timestamp.fromDate(fechaSolicitud),
-                        fechaEntregaEstimada: fechaEntrega && !isNaN(fechaEntrega.getTime()) ? 
-                            Timestamp.fromDate(fechaEntrega) : null,
-                        precio: parseFloat(values[headerMap["Precio"]]) || null,
-                        estadoPago: values[headerMap["Estado Pago"]]?.trim() || "Pendiente",
-                        estadoEntrega: values[headerMap["Estado Entrega"]]?.trim() || "Pendiente",
-                        notas: values[headerMap["Notas"]]?.trim() || "",
-                        fechaPago: fechaPago && !isNaN(fechaPago.getTime()) ? 
-                            Timestamp.fromDate(fechaPago) : null,
-                        fechaCreacion: Timestamp.now(),
-                        fechaUltimaActualizacion: Timestamp.now()
-                    };
-                    
-                    // Validación mínima de datos requeridos
-                    if (!solicitudData.marcaRaqueta) {
-                        errors.push(`Línea ${i+1}: Marca de raqueta es obligatoria`);
-                        errorCount++;
-                        continue;
-                    }
-                    
-                    // Validar consistencia entre pago y fecha de pago
-                    if (solicitudData.fechaPago && solicitudData.estadoPago !== 'Pagado') {
-                        solicitudData.estadoPago = 'Pagado';
-                    }
-                    
-                    // Añadir a la operación batch
-                    const newSolicitudRef = doc(collection(db, `users/${userId}/solicitudes`));
-                    batch.set(newSolicitudRef, solicitudData);
-                    importCount++;
-                    
-                } catch (parseError) {
-                    console.error(`Error parseando línea ${i+1}:`, parseError);
-                    errors.push(`Línea ${i+1}: Error de formato - ${parseError.message}`);
-                    errorCount++;
-                }
-            }
-            
-            // Ejecutar la operación batch si hay documentos para importar
-            if (importCount > 0) {
-                try {
-                    await batch.commit();
-                    let message = `${importCount} solicitudes importadas correctamente.`;
-                    
-                    if (errorCount > 0) {
-                        message += ` ${errorCount} errores (ver consola para detalles).`;
-                    }
-                    
-                    showModalMessage(message, "success");
-                    console.log("Errores durante la importación:", errors);
-                    
-                    // Recargar la lista de solicitudes
-                    loadSolicitudes();
-                    
-                } catch (commitError) {
-                    console.error("Error al guardar los datos:", commitError);
-                    showModalMessage(`Error al guardar: ${commitError.message}`, "error");
-                }
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+                userRole = userDoc.data().role || 'usuario'; // Por defecto 'usuario' si el rol no se encuentra
             } else {
-                showModalMessage(
-                    errorCount > 0 ? 
-                    "No se importaron solicitudes debido a errores." : 
-                    "No se encontraron datos válidos para importar.",
-                    "warning"
-                );
+                // Si el documento del usuario no existe, crearlo con un rol predeterminado
+                await setDoc(userDocRef, { email: user.email, role: 'usuario', createdAt: new Date() });
+                userRole = 'usuario';
+                showMessage(`Bienvenido, ${user.email}. Tu rol es: ${userRole}`, 'info');
             }
         } catch (error) {
-            console.error("Error procesando CSV:", error);
-            showModalMessage(`Error al procesar el archivo: ${error.message}`, "error");
-        } finally {
-            importFile.value = ''; // Limpiar el input de archivo
+            console.error("Error al obtener o crear el rol del usuario:", error);
+            userRole = 'usuario'; // Fallback a rol predeterminado en caso de error
+            showMessage("Error al cargar el perfil de usuario. Inténtalo de nuevo.", 'error');
         }
-    };
-    
-    reader.onerror = () => {
-        showModalMessage("Error al leer el archivo.", "error");
-        importFile.value = '';
-    };
-    
-    reader.readAsText(file);
+        console.log("Usuario autenticado. Rol:", userRole);
+
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+
+        // Actualizar la interfaz de usuario basada en el rol y el estado de autenticación
+        updateUIForAuthState();
+        // Cargar usuarios para la gestión de roles (si es administrador)
+        if (userRole === 'admin') {
+            cargarUsuarios();
+        }
+
+    } else {
+        // User is signed out
+        userRole = null;
+        currentUserId = null;
+        document.getElementById('loginContainer').style.display = 'flex';
+        document.getElementById('appContent').style.display = 'none';
+        updateUIForAuthState(); // Ocultar elementos de administrador
+    }
 });
 
-// --- EVENT LISTENERS PARA FILTROS ---
-document.getElementById('btnAplicarFiltros').addEventListener('click', loadSolicitudes);
-document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
-    document.getElementById('filtroJugador').value = '';
-    document.getElementById('filtroEstadoPago').value = '';
-    document.getElementById('filtroEstadoEntrega').value = '';
-    document.getElementById('filtroFechaSolicitudDesde').value = '';
-    document.getElementById('filtroFechaSolicitudHasta').value = '';
-    document.getElementById('filtroFechaPagoDesde').value = '';
-    document.getElementById('filtroFechaPagoHasta').value = '';
-    loadSolicitudes();
-});
+// Función para actualizar la interfaz de usuario basada en el rol del usuario
+function updateUIForAuthState() {
+    // Mostrar/ocultar pestaña de administración y elementos admin-only
+    const administracionTabLink = document.getElementById('administracionTabLink');
+    const tabAdministracion = document.getElementById('tab-administracion');
 
-// --- ESTADÍSTICAS ---
-function calcularYMostrarEstadisticas() {
-    if (!isAuthReady) return;
-    
-    const totalSolicitudes = currentSolicitudesData.length;
-    const ingresosTotales = currentSolicitudesData.reduce((sum, s) => sum + (s.precio || 0), 0);
-    const precioPromedio = totalSolicitudes > 0 ? ingresosTotales / totalSolicitudes : 0;
-    
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const solicitudesHoy = currentSolicitudesData.filter(s => {
-        const fecha = s.fechaSolicitud?.toDate();
-        return fecha && fecha >= hoy;
-    }).length;
-    
-    // Nuevas métricas
-    const ingresosUltimos30Dias = currentSolicitudesData
-        .filter(s => {
-            const fecha = s.fechaSolicitud?.toDate();
-            return fecha && fecha >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        })
-        .reduce((sum, s) => sum + (s.precio || 0), 0);
-    
-    const promedioIngresosDiarios = ingresosUltimos30Dias / 30;
-    
-    // Actualizar tarjetas
-    document.getElementById('statTotalSolicitudes').textContent = totalSolicitudes;
-    document.getElementById('statIngresosTotales').textContent = ingresosTotales.toFixed(2) + '€';
-    document.getElementById('statPrecioPromedio').textContent = precioPromedio.toFixed(2) + '€';
-    document.getElementById('statSolicitudesHoy').textContent = solicitudesHoy;
-    document.getElementById('statIngresos30Dias').textContent = ingresosUltimos30Dias.toFixed(2) + '€';
-    document.getElementById('statPromedioDiario').textContent = promedioIngresosDiarios.toFixed(2) + '€';
-    
-    // Actualizar gráficos
-    actualizarGraficosEstadisticas();
+    if (userRole === 'admin') {
+        if (administracionTabLink) administracionTabLink.style.display = 'block';
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block');
+    } else {
+        if (administracionTabLink) administracionTabLink.style.display = 'none';
+        if (tabAdministracion) tabAdministracion.style.display = 'none'; // Asegurarse de que el contenido de la pestaña también se oculte
+        document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+    }
+    // Asegurarse de que el botón de cerrar sesión esté visible solo cuando hay usuario
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.style.display = auth.currentUser ? 'block' : 'none';
+    }
 }
 
-function actualizarGraficosEstadisticas() {
-    // Datos para gráficos
-    const estadosPago = {
-        Pendiente: 0,
-        Pagado: 0
+// **********************************************
+// Funciones de Autenticación
+// **********************************************
+
+// Función de inicio de sesión
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errorMessageElement = document.getElementById('error-login');
+
+    try {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithEmailAndPassword(auth, email, password);
+        showMessage('Inicio de sesión exitoso.', 'success');
+        errorMessageElement.textContent = '';
+    } catch (error) {
+        console.error("Error de inicio de sesión:", error);
+        let message = 'Error de inicio de sesión. Credenciales inválidas.';
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            message = 'Correo o contraseña incorrectos.';
+        } else if (error.code === 'auth/invalid-email') {
+            message = 'El formato del correo electrónico es inválido.';
+        } else if (error.code === 'auth/too-many-requests') {
+            message = 'Demasiados intentos de inicio de sesión. Inténtalo de nuevo más tarde.';
+        }
+        errorMessageElement.textContent = message;
+        showMessage(message, 'error');
+    }
+});
+
+// Función de cierre de sesión
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try {
+        await signOut(auth);
+        showMessage('Sesión cerrada correctamente.', 'info');
+    } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        showMessage(`Error al cerrar sesión: ${error.message}`, 'error');
+    }
+});
+
+// **********************************************
+// Funciones de Administración de Roles (NUEVO)
+// **********************************************
+
+// Función para asignar el rol de administrador a un usuario
+async function asignarRolAdministrador(email) {
+    if (userRole !== 'admin') {
+        showMessage('Solo un administrador puede asignar roles.', 'error');
+        return;
+    }
+
+    if (!email) {
+        showMessage('Por favor, ingresa un correo electrónico.', 'error');
+        return;
+    }
+
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            await updateDoc(userDoc.ref, { role: 'admin' });
+            showMessage(`Rol de administrador asignado a "${email}".`, 'success');
+            cargarUsuarios(); // Recargar la lista de usuarios
+        } else {
+            showMessage(`Usuario con correo "${email}" no encontrado en la base de datos de roles. Asegúrate de que el usuario haya iniciado sesión al menos una vez para que su documento de usuario se cree.`, 'error');
+        }
+    } catch (error) {
+        console.error("Error al asignar rol de administrador:", error);
+        showMessage(`Error al asignar rol de administrador: ${error.message}`, 'error');
+    }
+}
+
+// Función para cargar y mostrar la lista de usuarios
+async function cargarUsuarios() {
+    if (userRole !== 'admin' || !db) { // Solo administradores y si db está inicializado
+        return;
+    }
+
+    const userListElement = document.getElementById('userList');
+    if (!userListElement) {
+        console.warn('No se encontró el elemento userList.');
+        return;
+    }
+    userListElement.innerHTML = '<li class="text-gray-500">Cargando usuarios...</li>'; // Mensaje de carga
+
+    try {
+        const usersRef = collection(db, 'users');
+        const querySnapshot = await getDocs(usersRef);
+        userListElement.innerHTML = ''; // Limpiar antes de añadir nuevos elementos
+
+        if (querySnapshot.empty) {
+            userListElement.innerHTML = '<li class="text-gray-500">No hay usuarios registrados.</li>';
+            return;
+        }
+
+        querySnapshot.forEach(doc => {
+            const userData = doc.data();
+            const userId = doc.id;
+            const listItem = document.createElement('li');
+            listItem.className = 'p-3 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-gray-50';
+            listItem.innerHTML = `
+                <span class="font-medium">${userData.email || 'N/A'}</span>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm text-gray-600">Rol: <strong class="capitalize">${userData.role || 'usuario'}</strong></span>
+                    ${userRole === 'admin' && userData.role !== 'admin' ? `
+                        <button data-userid="${userId}" data-email="${userData.email}" class="remove-admin-role-btn bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-2 rounded-lg">
+                            Remover Admin
+                        </button>
+                    ` : ''}
+                    ${userRole === 'admin' && userData.role !== 'admin' ? `
+                         <button data-userid="${userId}" data-email="${userData.email}" class="assign-admin-role-from-list-btn bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-2 rounded-lg">
+                            Hacer Admin
+                        </button>
+                    ` : ''}
+
+                </div>
+            `;
+            userListElement.appendChild(listItem);
+        });
+
+        // Añadir event listeners a los botones generados
+        userListElement.querySelectorAll('.assign-admin-role-from-list-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const emailToAssign = e.target.dataset.email;
+                await asignarRolAdministrador(emailToAssign);
+            });
+        });
+
+        userListElement.querySelectorAll('.remove-admin-role-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const userIdToRemoveRole = e.target.dataset.userid;
+                await removerRolAdministrador(userIdToRemoveRole);
+            });
+        });
+
+    } catch (error) {
+        console.error("Error al cargar usuarios:", error);
+        userListElement.innerHTML = '<li class="text-red-500">Error al cargar usuarios.</li>';
+        showMessage(`Error al cargar usuarios: ${error.message}`, 'error');
+    }
+}
+
+// Función para remover el rol de administrador
+async function removerRolAdministrador(userId) {
+    if (userRole !== 'admin') {
+        showMessage('Solo un administrador puede remover roles.', 'error');
+        return;
+    }
+    if (userId === currentUserId) { // Evitar que un admin se remueva a sí mismo
+        showMessage('No puedes remover tu propio rol de administrador.', 'error');
+        return;
+    }
+
+    try {
+        const userDocRef = doc(db, 'users', userId);
+        await updateDoc(userDocRef, { role: 'usuario' });
+        showMessage('Rol de administrador removido con éxito.', 'success');
+        cargarUsuarios(); // Recargar la lista de usuarios
+    } catch (error) {
+        console.error("Error al remover rol de administrador:", error);
+        showMessage(`Error al remover rol de administrador: ${error.message}`, 'error');
+    }
+}
+
+
+// Event listener para el botón de asignar rol de administrador
+document.addEventListener('DOMContentLoaded', () => {
+    const assignAdminRoleBtn = document.getElementById('assignAdminRoleBtn');
+    if (assignAdminRoleBtn) {
+        assignAdminRoleBtn.addEventListener('click', () => {
+            const emailInput = document.getElementById('adminEmailInput');
+            if (emailInput) {
+                asignarRolAdministrador(emailInput.value);
+            }
+        });
+    }
+});
+
+
+// **********************************************
+// Funciones de Navegación de Pestañas
+// **********************************************
+
+// Función para mostrar la pestaña activa
+function showTab(tabId) {
+    // Ocultar todas las pestañas
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.style.display = 'none';
+    });
+    // Remover clase 'active' de todos los enlaces de pestañas
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.classList.remove('bg-blue-600', 'text-white');
+        link.classList.add('text-blue-800', 'hover:bg-blue-200');
+    });
+
+    // Mostrar la pestaña seleccionada
+    const selectedTab = document.getElementById(tabId);
+    if (selectedTab) {
+        selectedTab.style.display = 'block';
+    }
+
+    // Añadir clase 'active' al enlace de la pestaña seleccionada
+    const activeTabLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
+    if (activeTabLink) {
+        activeTabLink.classList.remove('text-blue-800', 'hover:bg-blue-200');
+        activeTabLink.classList.add('bg-blue-600', 'text-white');
+    }
+
+    // Si la pestaña de administración está activa, cargar los usuarios
+    if (tabId === 'tab-administracion' && userRole === 'admin') {
+        cargarUsuarios();
+    }
+}
+
+// Asignar event listeners a los enlaces de pestañas
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.tab-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabId = e.target.dataset.tab;
+            showTab(tabId);
+        });
+    });
+
+    // Mostrar la pestaña de Solicitudes por defecto al cargar
+    showTab('tab-solicitudes');
+    updateUIForAuthState(); // Asegurarse de que el estado de la UI se actualiza al cargar la página
+});
+
+
+// **********************************************
+// Funciones para Solicitudes
+// **********************************************
+
+// Referencia a la colección de solicitudes (anidada dentro del usuario)
+const getSolicitudesCollectionRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'solicitudes');
+const getPublicSolicitudesCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'solicitudes'); // Colección pública
+
+
+// Cargar solicitudes (ajustada para roles y mostrar el creador)
+async function cargarSolicitudes() {
+    const solicitudesTableBody = document.getElementById('solicitudesTableBody');
+    if (!solicitudesTableBody) return;
+
+    solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-500">Cargando solicitudes...</td></tr>';
+
+    const solicitudes = [];
+
+    try {
+        if (userRole === 'admin') {
+            // Si es admin, cargar solicitudes de todos los usuarios
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            for (const userDoc of usersSnapshot.docs) {
+                const userUid = userDoc.id;
+                const userEmail = userDoc.data().email || 'Usuario Desconocido'; // Obtener email del creador
+
+                const userSolicitudesQuery = query(getSolicitudesCollectionRef(userUid));
+                const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
+                userSolicitudesSnapshot.forEach(doc => {
+                    solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: userEmail, creadorUid: userUid });
+                });
+            }
+             // También cargar solicitudes de la colección pública para administradores
+             const publicSolicitudesSnapshot = await getDocs(getPublicSolicitudesCollectionRef());
+             publicSolicitudesSnapshot.forEach(doc => {
+                 solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
+             });
+
+        } else if (currentUserId) {
+            // Si es usuario normal, cargar solo sus solicitudes privadas
+            const userSolicitudesQuery = query(getSolicitudesCollectionRef(currentUserId));
+            const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
+            userSolicitudesSnapshot.forEach(doc => {
+                solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: 'Tú', creadorUid: currentUserId });
+            });
+        }
+
+        renderizarSolicitudes(solicitudes);
+        actualizarEstadisticasSolicitudes(solicitudes);
+        exportarSolicitudesBtn.style.display = solicitudes.length > 0 ? 'block' : 'none'; // Mostrar/ocultar botón
+    } catch (error) {
+        console.error("Error al cargar solicitudes:", error);
+        solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-red-500">Error al cargar solicitudes.</td></tr>';
+        showMessage('Error al cargar solicitudes.', 'error');
+    }
+}
+
+// Renderizar las solicitudes en la tabla
+function renderizarSolicitudes(solicitudes) {
+    const solicitudesTableBody = document.getElementById('solicitudesTableBody');
+    if (!solicitudesTableBody) return;
+
+    solicitudesTableBody.innerHTML = ''; // Limpiar tabla
+
+    if (solicitudes.length === 0) {
+        solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-500">No hay solicitudes registradas.</td></tr>';
+        return;
+    }
+
+    solicitudes.forEach(solicitud => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+        let estadoColorClass = '';
+        switch (solicitud.estadoEntrega) {
+            case 'Pendiente': estadoColorClass = 'text-yellow-600 font-semibold'; break;
+            case 'En Proceso': estadoColorClass = 'text-blue-600 font-semibold'; break;
+            case 'Listo para Recoger': estadoColorClass = 'text-green-600 font-semibold'; break;
+            case 'Entregado': estadoColorClass = 'text-gray-500'; break;
+            case 'Cancelado': estadoColorClass = 'text-red-600'; break;
+        }
+
+        const fechaSolicitud = solicitud.fechaSolicitud ? new Date(solicitud.fechaSolicitud).toLocaleDateString() : 'N/A';
+        const fechaEntregaEstimada = solicitud.fechaEntregaEstimada ? new Date(solicitud.fechaEntregaEstimada).toLocaleDateString() : 'N/A';
+        const fechaEntregaReal = solicitud.fechaEntregaReal ? new Date(solicitud.fechaEntregaReal).toLocaleDateString() : 'N/A';
+
+        // Determinar si los botones de acción deben estar deshabilitados
+        const isEditable = (userRole === 'admin') || (currentUserId === solicitud.creadorUid);
+        const isDisabledClass = isEditable ? '' : 'opacity-50 cursor-not-allowed';
+        const disabledAttr = isEditable ? '' : 'disabled';
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${solicitud.nombreJugador || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${solicitud.modeloRaqueta || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${solicitud.tipoCuerda || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${solicitud.tensión || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaSolicitud}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaEntregaEstimada}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${fechaEntregaReal}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm ${estadoColorClass}">${solicitud.estadoEntrega || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${solicitud.creadorEmail || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button data-id="${solicitud.id}" data-creador-uid="${solicitud.creadorUid}" class="edit-solicitud-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg mr-2 ${isDisabledClass}" ${disabledAttr}>
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button data-id="${solicitud.id}" data-creador-uid="${solicitud.creadorUid}" class="delete-solicitud-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg ${isDisabledClass}" ${disabledAttr}>
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        `;
+        solicitudesTableBody.appendChild(row);
+    });
+
+    // Añadir event listeners para editar y eliminar solicitudes
+    document.querySelectorAll('.edit-solicitud-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const solicitudId = e.currentTarget.dataset.id;
+            const creadorUid = e.currentTarget.dataset.creadorUid;
+            mostrarEditarSolicitudModal(solicitudId, creadorUid);
+        });
+    });
+
+    document.querySelectorAll('.delete-solicitud-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const solicitudId = e.currentTarget.dataset.id;
+            const creadorUid = e.currentTarget.dataset.creadorUid;
+            mostrarConfirmarEliminarModal(solicitudId, 'solicitud', creadorUid);
+        });
+    });
+}
+
+// Añadir una nueva solicitud
+document.getElementById('solicitudForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Validar permisos
+    if (userRole !== 'admin' && userRole !== 'usuario') {
+        showMessage('No tienes permiso para agregar solicitudes.', 'error');
+        return;
+    }
+    if (!currentUserId) {
+        showMessage('Debes iniciar sesión para agregar solicitudes.', 'error');
+        return;
+    }
+
+    const newSolicitud = {
+        nombreJugador: document.getElementById('solicitudNombreJugador').value,
+        modeloRaqueta: document.getElementById('solicitudModeloRaqueta').value,
+        tipoCuerda: document.getElementById('solicitudTipoCuerda').value,
+        tensión: document.getElementById('solicitudTension').value,
+        fechaSolicitud: document.getElementById('solicitudFechaSolicitud').value,
+        fechaEntregaEstimada: document.getElementById('solicitudFechaEntregaEstimada').value,
+        estadoEntrega: document.getElementById('solicitudEstadoEntrega').value,
+        notas: document.getElementById('solicitudNotas').value,
+        fechaEntregaReal: '', // Se llena cuando el estado cambia a "Entregado"
+        createdAt: new Date().toISOString()
     };
-    
-    const estadosEntrega = {
+
+    // Validaciones
+    let isValid = true;
+    if (!newSolicitud.nombreJugador) {
+        document.getElementById('error-solicitudNombreJugador').textContent = 'El nombre del jugador es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudNombreJugador').textContent = '';
+    }
+    if (!newSolicitud.modeloRaqueta) {
+        document.getElementById('error-solicitudModeloRaqueta').textContent = 'El modelo de la raqueta es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudModeloRaqueta').textContent = '';
+    }
+    if (!newSolicitud.tipoCuerda) {
+        document.getElementById('error-solicitudTipoCuerda').textContent = 'El tipo de cuerda es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudTipoCuerda').textContent = '';
+    }
+    if (!newSolicitud.tensión) {
+        document.getElementById('error-solicitudTension').textContent = 'La tensión es obligatoria.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudTension').textContent = '';
+    }
+    if (!newSolicitud.fechaSolicitud) {
+        document.getElementById('error-solicitudFechaSolicitud').textContent = 'La fecha de solicitud es obligatoria.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudFechaSolicitud').textContent = '';
+    }
+    if (!newSolicitud.estadoEntrega) {
+        document.getElementById('error-solicitudEstadoEntrega').textContent = 'El estado de entrega es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-solicitudEstadoEntrega').textContent = '';
+    }
+
+    if (!isValid) {
+        showMessage('Por favor, completa todos los campos obligatorios.', 'error');
+        return;
+    }
+
+    try {
+        const publicCheckbox = document.getElementById('solicitudPublico');
+        const isPublic = publicCheckbox && publicCheckbox.checked;
+
+        if (isPublic) {
+            await addDoc(getPublicSolicitudesCollectionRef(), newSolicitud);
+            showMessage('Nueva solicitud pública añadida.', 'success');
+        } else {
+            await addDoc(getSolicitudesCollectionRef(currentUserId), newSolicitud);
+            showMessage('Nueva solicitud privada añadida.', 'success');
+        }
+
+        document.getElementById('solicitudForm').reset();
+        publicCheckbox.checked = false; // Reset checkbox
+        cargarSolicitudes();
+    } catch (error) {
+        console.error("Error al añadir solicitud:", error);
+        showMessage(`Error al añadir solicitud: ${error.message}`, 'error');
+    }
+});
+
+
+// Mostrar/ocultar el modal de edición de solicitudes
+const editSolicitudModal = document.getElementById('editSolicitudModal');
+const cancelEditSolicitudBtn = document.getElementById('cancelEditSolicitud');
+const editSolicitudForm = document.getElementById('editSolicitudForm');
+
+cancelEditSolicitudBtn.addEventListener('click', () => {
+    editSolicitudModal.classList.add('hidden');
+    editSolicitudForm.reset();
+});
+
+let currentEditingSolicitud = null; // Variable para guardar el ID de la solicitud en edición
+let currentEditingSolicitudCreatorUid = null; // Variable para guardar el UID del creador de la solicitud en edición
+
+// Mostrar modal de edición de solicitud
+async function mostrarEditarSolicitudModal(solicitudId, creadorUid) {
+    if (userRole !== 'admin' && currentUserId !== creadorUid) {
+        showMessage('No tienes permiso para editar esta solicitud.', 'error');
+        return;
+    }
+    currentEditingSolicitud = solicitudId;
+    currentEditingSolicitudCreatorUid = creadorUid;
+
+    let solicitudDocRef;
+    if (creadorUid === 'public') { // Es una solicitud pública
+        solicitudDocRef = doc(getPublicSolicitudesCollectionRef(), solicitudId);
+    } else { // Es una solicitud privada de un usuario
+        solicitudDocRef = doc(getSolicitudesCollectionRef(creadorUid), solicitudId);
+    }
+
+    try {
+        const docSnap = await getDoc(solicitudDocRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('editSolicitudNombreJugador').value = data.nombreJugador || '';
+            document.getElementById('editSolicitudModeloRaqueta').value = data.modeloRaqueta || '';
+            document.getElementById('editSolicitudTipoCuerda').value = data.tipoCuerda || '';
+            document.getElementById('editSolicitudTension').value = data.tensión || '';
+            document.getElementById('editSolicitudFechaSolicitud').value = data.fechaSolicitud || '';
+            document.getElementById('editSolicitudFechaEntregaEstimada').value = data.fechaEntregaEstimada || '';
+            document.getElementById('editSolicitudFechaEntregaReal').value = data.fechaEntregaReal || '';
+            document.getElementById('editSolicitudEstadoEntrega').value = data.estadoEntrega || 'Pendiente';
+            document.getElementById('editSolicitudNotas').value = data.notas || '';
+
+            editSolicitudModal.classList.remove('hidden');
+        } else {
+            showMessage("Solicitud no encontrada.", 'error');
+        }
+    } catch (error) {
+        console.error("Error al cargar solicitud para edición:", error);
+        showMessage("Error al cargar solicitud para edición.", 'error');
+    }
+}
+
+// Guardar cambios de solicitud
+editSolicitudForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!currentEditingSolicitud || !currentEditingSolicitudCreatorUid) {
+        showMessage('No hay solicitud seleccionada para editar.', 'error');
+        return;
+    }
+
+    if (userRole !== 'admin' && currentUserId !== currentEditingSolicitudCreatorUid) {
+        showMessage('No tienes permiso para guardar cambios en esta solicitud.', 'error');
+        return;
+    }
+
+    const updatedSolicitud = {
+        nombreJugador: document.getElementById('editSolicitudNombreJugador').value,
+        modeloRaqueta: document.getElementById('editSolicitudModeloRaqueta').value,
+        tipoCuerda: document.getElementById('editSolicitudTipoCuerda').value,
+        tensión: document.getElementById('editSolicitudTension').value,
+        fechaSolicitud: document.getElementById('editSolicitudFechaSolicitud').value,
+        fechaEntregaEstimada: document.getElementById('editSolicitudFechaEntregaEstimada').value,
+        fechaEntregaReal: document.getElementById('editSolicitudFechaEntregaReal').value,
+        estadoEntrega: document.getElementById('editSolicitudEstadoEntrega').value,
+        notas: document.getElementById('editSolicitudNotas').value,
+        updatedAt: new Date().toISOString()
+    };
+
+    // Validaciones de campos obligatorios en edición
+    let isValid = true;
+    if (!updatedSolicitud.nombreJugador) {
+        document.getElementById('error-editNombreJugador').textContent = 'El nombre del jugador es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editNombreJugador').textContent = '';
+    }
+    if (!updatedSolicitud.modeloRaqueta) {
+        document.getElementById('error-editModeloRaqueta').textContent = 'El modelo de la raqueta es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editModeloRaqueta').textContent = '';
+    }
+    if (!updatedSolicitud.tipoCuerda) {
+        document.getElementById('error-editTipoCuerda').textContent = 'El tipo de cuerda es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editTipoCuerda').textContent = '';
+    }
+    if (!updatedSolicitud.tensión) {
+        document.getElementById('error-editTension').textContent = 'La tensión es obligatoria.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editTension').textContent = '';
+    }
+    if (!updatedSolicitud.fechaSolicitud) {
+        document.getElementById('error-editFechaSolicitud').textContent = 'La fecha de solicitud es obligatoria.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editFechaSolicitud').textContent = '';
+    }
+    if (!updatedSolicitud.estadoEntrega) {
+        document.getElementById('error-editEstadoEntrega').textContent = 'El estado de entrega es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editEstadoEntrega').textContent = '';
+    }
+
+    if (!isValid) {
+        showMessage('Por favor, completa todos los campos obligatorios en el formulario de edición.', 'error');
+        return;
+    }
+
+    let solicitudDocRef;
+    if (currentEditingSolicitudCreatorUid === 'public') {
+        solicitudDocRef = doc(getPublicSolicitudesCollectionRef(), currentEditingSolicitud);
+    } else {
+        solicitudDocRef = doc(getSolicitudesCollectionRef(currentEditingSolicitudCreatorUid), currentEditingSolicitud);
+    }
+
+    try {
+        await updateDoc(solicitudDocRef, updatedSolicitud);
+        showMessage('Solicitud actualizada con éxito.', 'success');
+        editSolicitudModal.classList.add('hidden');
+        cargarSolicitudes(); // Recargar la lista de solicitudes
+        currentEditingSolicitud = null;
+        currentEditingSolicitudCreatorUid = null;
+    } catch (error) {
+        console.error("Error al actualizar solicitud:", error);
+        showMessage(`Error al actualizar solicitud: ${error.message}`, 'error');
+    }
+});
+
+// **********************************************
+// Funciones para Jugadores
+// **********************************************
+
+// Referencia a la colección de jugadores (anidada dentro del usuario)
+const getJugadoresCollectionRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'jugadores');
+const getPublicJugadoresCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'jugadores'); // Colección pública
+
+// Cargar jugadores (ajustada para roles y mostrar el creador)
+async function cargarJugadores() {
+    const jugadoresTableBody = document.getElementById('jugadoresTableBody');
+    if (!jugadoresTableBody) return;
+
+    jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">Cargando jugadores...</td></tr>';
+
+    const jugadores = [];
+
+    try {
+        if (userRole === 'admin') {
+            // Si es admin, cargar jugadores de todos los usuarios
+            const usersSnapshot = await getDocs(collection(db, 'users'));
+            for (const userDoc of usersSnapshot.docs) {
+                const userUid = userDoc.id;
+                const userEmail = userDoc.data().email || 'Usuario Desconocido';
+
+                const userJugadoresQuery = query(getJugadoresCollectionRef(userUid));
+                const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
+                userJugadoresSnapshot.forEach(doc => {
+                    jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: userEmail, creadorUid: userUid });
+                });
+            }
+             // También cargar jugadores de la colección pública para administradores
+            const publicJugadoresSnapshot = await getDocs(getPublicJugadoresCollectionRef());
+            publicJugadoresSnapshot.forEach(doc => {
+                jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
+            });
+
+        } else if (currentUserId) {
+            // Si es usuario normal, cargar solo sus jugadores privados
+            const userJugadoresQuery = query(getJugadoresCollectionRef(currentUserId));
+            const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
+            userJugadoresSnapshot.forEach(doc => {
+                jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: 'Tú', creadorUid: currentUserId });
+            });
+        }
+
+        renderizarJugadores(jugadores);
+        exportarJugadoresBtn.style.display = jugadores.length > 0 ? 'block' : 'none'; // Mostrar/ocultar botón
+    } catch (error) {
+        console.error("Error al cargar jugadores:", error);
+        jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-red-500">Error al cargar jugadores.</td></tr>';
+        showMessage('Error al cargar jugadores.', 'error');
+    }
+}
+
+
+// Renderizar jugadores en la tabla
+function renderizarJugadores(jugadores) {
+    const jugadoresTableBody = document.getElementById('jugadoresTableBody');
+    if (!jugadoresTableBody) return;
+
+    jugadoresTableBody.innerHTML = ''; // Limpiar tabla
+
+    if (jugadores.length === 0) {
+        jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">No hay jugadores registrados.</td></tr>';
+        return;
+    }
+
+    jugadores.forEach(jugador => {
+        const row = document.createElement('tr');
+        row.className = 'border-b hover:bg-gray-50';
+
+        const isEditable = (userRole === 'admin') || (currentUserId === jugador.creadorUid);
+        const isDisabledClass = isEditable ? '' : 'opacity-50 cursor-not-allowed';
+        const disabledAttr = isEditable ? '' : 'disabled';
+
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.nombre || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.email || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.telefono || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.nivel || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.manoDominante || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.notas || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${jugador.creadorEmail || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button data-id="${jugador.id}" data-creador-uid="${jugador.creadorUid}" class="edit-jugador-btn bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-3 rounded-lg mr-2 ${isDisabledClass}" ${disabledAttr}>
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button data-id="${jugador.id}" data-creador-uid="${jugador.creadorUid}" class="delete-jugador-btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-3 rounded-lg ${isDisabledClass}" ${disabledAttr}>
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </td>
+        `;
+        jugadoresTableBody.appendChild(row);
+    });
+
+    // Añadir event listeners para editar y eliminar jugadores
+    document.querySelectorAll('.edit-jugador-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const jugadorId = e.currentTarget.dataset.id;
+            const creadorUid = e.currentTarget.dataset.creadorUid;
+            mostrarEditarJugadorModal(jugadorId, creadorUid);
+        });
+    });
+
+    document.querySelectorAll('.delete-jugador-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const jugadorId = e.currentTarget.dataset.id;
+            const creadorUid = e.currentTarget.dataset.creadorUid;
+            mostrarConfirmarEliminarModal(jugadorId, 'jugador', creadorUid);
+        });
+    });
+}
+
+// Añadir nuevo jugador
+document.getElementById('jugadorForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    // Validar permisos
+    if (userRole !== 'admin' && userRole !== 'usuario') {
+        showMessage('No tienes permiso para agregar jugadores.', 'error');
+        return;
+    }
+    if (!currentUserId) {
+        showMessage('Debes iniciar sesión para agregar jugadores.', 'error');
+        return;
+    }
+
+    const newJugador = {
+        nombre: document.getElementById('jugadorNombre').value,
+        email: document.getElementById('jugadorEmail').value,
+        telefono: document.getElementById('jugadorTelefono').value,
+        nivel: document.getElementById('jugadorNivel').value,
+        manoDominante: document.getElementById('jugadorManoDominante').value,
+        notas: document.getElementById('jugadorNotas').value,
+        createdAt: new Date().toISOString()
+    };
+
+    // Validaciones
+    let isValid = true;
+    if (!newJugador.nombre) {
+        document.getElementById('error-jugadorNombre').textContent = 'El nombre es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-jugadorNombre').textContent = '';
+    }
+    if (!newJugador.email) {
+        document.getElementById('error-jugadorEmail').textContent = 'El email es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-jugadorEmail').textContent = '';
+    }
+
+    if (!isValid) {
+        showMessage('Por favor, completa todos los campos obligatorios.', 'error');
+        return;
+    }
+
+    try {
+        const publicCheckbox = document.getElementById('jugadorPublico');
+        const isPublic = publicCheckbox && publicCheckbox.checked;
+
+        if (isPublic) {
+            await addDoc(getPublicJugadoresCollectionRef(), newJugador);
+            showMessage('Nuevo jugador público añadido.', 'success');
+        } else {
+            await addDoc(getJugadoresCollectionRef(currentUserId), newJugador);
+            showMessage('Nuevo jugador privado añadido.', 'success');
+        }
+
+        document.getElementById('jugadorForm').reset();
+        publicCheckbox.checked = false; // Reset checkbox
+        cargarJugadores();
+    } catch (error) {
+        console.error("Error al añadir jugador:", error);
+        showMessage(`Error al añadir jugador: ${error.message}`, 'error');
+    }
+});
+
+
+// Mostrar/ocultar el modal de edición de jugadores
+const editJugadorModal = document.getElementById('editJugadorModal');
+const cancelEditJugadorBtn = document.getElementById('cancelEditJugador');
+const editJugadorForm = document.getElementById('editJugadorForm');
+
+cancelEditJugadorBtn.addEventListener('click', () => {
+    editJugadorModal.classList.add('hidden');
+    editJugadorForm.reset();
+});
+
+let currentEditingJugador = null; // Variable para guardar el ID del jugador en edición
+let currentEditingJugadorCreatorUid = null; // Variable para guardar el UID del creador del jugador en edición
+
+// Mostrar modal de edición de jugador
+async function mostrarEditarJugadorModal(jugadorId, creadorUid) {
+    if (userRole !== 'admin' && currentUserId !== creadorUid) {
+        showMessage('No tienes permiso para editar este jugador.', 'error');
+        return;
+    }
+    currentEditingJugador = jugadorId;
+    currentEditingJugadorCreatorUid = creadorUid;
+
+    let jugadorDocRef;
+    if (creadorUid === 'public') {
+        jugadorDocRef = doc(getPublicJugadoresCollectionRef(), jugadorId);
+    } else {
+        jugadorDocRef = doc(getJugadoresCollectionRef(creadorUid), jugadorId);
+    }
+
+    try {
+        const docSnap = await getDoc(jugadorDocRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('editJugadorNombre').value = data.nombre || '';
+            document.getElementById('editJugadorEmail').value = data.email || '';
+            document.getElementById('editJugadorTelefono').value = data.telefono || '';
+            document.getElementById('editJugadorNivel').value = data.nivel || '';
+            document.getElementById('editJugadorManoDominante').value = data.manoDominante || '';
+            document.getElementById('editJugadorNotas').value = data.notas || '';
+
+            editJugadorModal.classList.remove('hidden');
+        } else {
+            showMessage("Jugador no encontrado.", 'error');
+        }
+    } catch (error) {
+        console.error("Error al cargar jugador para edición:", error);
+        showMessage("Error al cargar jugador para edición.", 'error');
+    }
+}
+
+// Guardar cambios de jugador
+editJugadorForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (!currentEditingJugador || !currentEditingJugadorCreatorUid) {
+        showMessage('No hay jugador seleccionado para editar.', 'error');
+        return;
+    }
+
+    if (userRole !== 'admin' && currentUserId !== currentEditingJugadorCreatorUid) {
+        showMessage('No tienes permiso para guardar cambios en este jugador.', 'error');
+        return;
+    }
+
+    const updatedJugador = {
+        nombre: document.getElementById('editJugadorNombre').value,
+        email: document.getElementById('editJugadorEmail').value,
+        telefono: document.getElementById('editJugadorTelefono').value,
+        nivel: document.getElementById('editJugadorNivel').value,
+        manoDominante: document.getElementById('editJugadorManoDominante').value,
+        notas: document.getElementById('editJugadorNotas').value,
+        updatedAt: new Date().toISOString()
+    };
+
+    // Validaciones de campos obligatorios en edición
+    let isValid = true;
+    if (!updatedJugador.nombre) {
+        document.getElementById('error-editJugadorNombre').textContent = 'El nombre es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editJugadorNombre').textContent = '';
+    }
+    if (!updatedJugador.email) {
+        document.getElementById('error-editJugadorEmail').textContent = 'El email es obligatorio.';
+        isValid = false;
+    } else {
+        document.getElementById('error-editJugadorEmail').textContent = '';
+    }
+
+    if (!isValid) {
+        showMessage('Por favor, completa todos los campos obligatorios en el formulario de edición.', 'error');
+        return;
+    }
+
+    let jugadorDocRef;
+    if (currentEditingJugadorCreatorUid === 'public') {
+        jugadorDocRef = doc(getPublicJugadoresCollectionRef(), currentEditingJugador);
+    } else {
+        jugadorDocRef = doc(getJugadoresCollectionRef(currentEditingJugadorCreatorUid), currentEditingJugador);
+    }
+
+    try {
+        await updateDoc(jugadorDocRef, updatedJugador);
+        showMessage('Jugador actualizado con éxito.', 'success');
+        editJugadorModal.classList.add('hidden');
+        cargarJugadores(); // Recargar la lista de jugadores
+        currentEditingJugador = null;
+        currentEditingJugadorCreatorUid = null;
+    } catch (error) {
+        console.error("Error al actualizar jugador:", error);
+        showMessage(`Error al actualizar jugador: ${error.message}`, 'error');
+    }
+});
+
+
+// **********************************************
+// Funciones de Eliminación (Común para Jugadores y Solicitudes)
+// **********************************************
+
+const confirmarEliminarModal = document.getElementById('confirmarEliminarModal');
+const cancelarEliminarBtn = document.getElementById('cancelarEliminar');
+const confirmarEliminarBtn = document.getElementById('confirmarEliminar');
+
+let itemAEliminar = { id: null, tipo: null, creadorUid: null }; // Almacenar el ID y tipo del ítem a eliminar
+
+cancelarEliminarBtn.addEventListener('click', () => {
+    confirmarEliminarModal.classList.add('hidden');
+});
+
+confirmarEliminarBtn.addEventListener('click', async () => {
+    confirmarEliminarModal.classList.add('hidden');
+    const { id, tipo, creadorUid } = itemAEliminar;
+
+    if (userRole !== 'admin' && currentUserId !== creadorUid) {
+        showMessage('No tienes permiso para eliminar este elemento.', 'error');
+        return;
+    }
+
+    try {
+        let docRef;
+        if (tipo === 'jugador') {
+            if (creadorUid === 'public') {
+                docRef = doc(getPublicJugadoresCollectionRef(), id);
+            } else {
+                docRef = doc(getJugadoresCollectionRef(creadorUid), id);
+            }
+            await deleteDoc(docRef);
+            showMessage('Jugador eliminado con éxito.', 'success');
+            cargarJugadores();
+        } else if (tipo === 'solicitud') {
+            if (creadorUid === 'public') {
+                docRef = doc(getPublicSolicitudesCollectionRef(), id);
+            } else {
+                docRef = doc(getSolicitudesCollectionRef(creadorUid), id);
+            }
+            await deleteDoc(docRef);
+            showMessage('Solicitud eliminada con éxito.', 'success');
+            cargarSolicitudes();
+        }
+    } catch (error) {
+        console.error(`Error al eliminar ${tipo}:`, error);
+        showMessage(`Error al eliminar ${tipo}: ${error.message}`, 'error');
+    } finally {
+        itemAEliminar = { id: null, tipo: null, creadorUid: null }; // Reset
+    }
+});
+
+function mostrarConfirmarEliminarModal(id, tipo, creadorUid) {
+    if (userRole !== 'admin' && currentUserId !== creadorUid) {
+        showMessage('No tienes permiso para eliminar este elemento.', 'error');
+        return;
+    }
+    itemAEliminar = { id, tipo, creadorUid };
+    document.getElementById('confirmarMensaje').textContent = `¿Estás seguro de que deseas eliminar este ${tipo}?`;
+    confirmarEliminarModal.classList.remove('hidden');
+}
+
+
+// **********************************************
+// Funciones de Exportación e Importación CSV
+// **********************************************
+
+// Función para convertir datos a CSV
+function convertirAcsv(data, headers) {
+    let csv = headers.join(',') + '\n';
+    data.forEach(row => {
+        const values = headers.map(header => {
+            const value = row[header] !== undefined && row[header] !== null ? String(row[header]) : '';
+            // Escapar comas y comillas dobles
+            return `"${value.replace(/"/g, '""')}"`;
+        });
+        csv += values.join(',') + '\n';
+    });
+    return csv;
+}
+
+// Exportar Jugadores a CSV
+const exportarJugadoresBtn = document.getElementById('exportarJugadoresCSV');
+if (exportarJugadoresBtn) {
+    exportarJugadoresBtn.addEventListener('click', async () => {
+        if (userRole !== 'admin' && userRole !== 'usuario') { // Permiso para exportar
+            showMessage('No tienes permiso para exportar jugadores.', 'error');
+            return;
+        }
+        if (!currentUserId) {
+            showMessage('Debes iniciar sesión para exportar jugadores.', 'error');
+            return;
+        }
+
+        const jugadores = [];
+        try {
+            if (userRole === 'admin') {
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                for (const userDoc of usersSnapshot.docs) {
+                    const userUid = userDoc.id;
+                    const userJugadoresSnapshot = await getDocs(getJugadoresCollectionRef(userUid));
+                    userJugadoresSnapshot.forEach(doc => jugadores.push(doc.data()));
+                }
+                const publicJugadoresSnapshot = await getDocs(getPublicJugadoresCollectionRef());
+                publicJugadoresSnapshot.forEach(doc => jugadores.push(doc.data()));
+            } else {
+                const userJugadoresSnapshot = await getDocs(getJugadoresCollectionRef(currentUserId));
+                userJugadoresSnapshot.forEach(doc => jugadores.push(doc.data()));
+            }
+
+            if (jugadores.length === 0) {
+                showMessage('No hay jugadores para exportar.', 'info');
+                return;
+            }
+
+            const headers = ['nombre', 'email', 'telefono', 'nivel', 'manoDominante', 'notas', 'createdAt', 'updatedAt'];
+            const csv = convertirAcsv(jugadores, headers);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'jugadores.csv';
+            link.click();
+            showMessage('Jugadores exportados correctamente.', 'success');
+        } catch (error) {
+            console.error("Error al exportar jugadores:", error);
+            showMessage('Error al exportar jugadores.', 'error');
+        }
+    });
+}
+
+// Exportar Solicitudes a CSV
+const exportarSolicitudesBtn = document.getElementById('exportarSolicitudesCSV');
+if (exportarSolicitudesBtn) {
+    exportarSolicitudesBtn.addEventListener('click', async () => {
+        if (userRole !== 'admin' && userRole !== 'usuario') { // Permiso para exportar
+            showMessage('No tienes permiso para exportar solicitudes.', 'error');
+            return;
+        }
+        if (!currentUserId) {
+            showMessage('Debes iniciar sesión para exportar solicitudes.', 'error');
+            return;
+        }
+
+        const solicitudes = [];
+        try {
+            if (userRole === 'admin') {
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                for (const userDoc of usersSnapshot.docs) {
+                    const userUid = userDoc.id;
+                    const userSolicitudesSnapshot = await getDocs(getSolicitudesCollectionRef(userUid));
+                    userSolicitudesSnapshot.forEach(doc => solicitudes.push(doc.data()));
+                }
+                const publicSolicitudesSnapshot = await getDocs(getPublicSolicitudesCollectionRef());
+                publicSolicitudesSnapshot.forEach(doc => solicitudes.push(doc.data()));
+            } else {
+                const userSolicitudesSnapshot = await getDocs(getSolicitudesCollectionRef(currentUserId));
+                userSolicitudesSnapshot.forEach(doc => solicitudes.push(doc.data()));
+            }
+
+            if (solicitudes.length === 0) {
+                showMessage('No hay solicitudes para exportar.', 'info');
+                return;
+            }
+
+            const headers = ['nombreJugador', 'modeloRaqueta', 'tipoCuerda', 'tensión', 'fechaSolicitud', 'fechaEntregaEstimada', 'fechaEntregaReal', 'estadoEntrega', 'notas', 'createdAt', 'updatedAt'];
+            const csv = convertirAcsv(solicitudes, headers);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'solicitudes.csv';
+            link.click();
+            showMessage('Solicitudes exportadas correctamente.', 'success');
+        } catch (error) {
+            console.error("Error al exportar solicitudes:", error);
+            showMessage('Error al exportar solicitudes.', 'error');
+        }
+    });
+}
+
+// Importar CSV
+function importarCSV(csvContent, tipo) {
+    if (userRole !== 'admin') { // Solo admin puede importar
+        showMessage('Solo un administrador puede importar datos.', 'error');
+        return;
+    }
+    if (!currentUserId) {
+        showMessage('Debes iniciar sesión para importar datos.', 'error');
+        return;
+    }
+
+    const lines = csvContent.split('\n').filter(line => line.trim() !== '');
+    if (lines.length === 0) {
+        showMessage('El archivo CSV está vacío.', 'error');
+        return;
+    }
+
+    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+    const dataToImport = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Dividir por coma, ignorando comas dentro de comillas
+        if (values.length !== headers.length) {
+            console.warn(`Saltando línea ${i + 1} debido a un número de columnas incorrecto.`);
+            continue;
+        }
+        const rowData = {};
+        headers.forEach((header, index) => {
+            rowData[header] = values[index].replace(/"/g, '').trim();
+        });
+        dataToImport.push(rowData);
+    }
+
+    if (dataToImport.length === 0) {
+        showMessage('No se pudieron parsear datos válidos del archivo CSV.', 'error');
+        return;
+    }
+
+    // Modal de confirmación para importación
+    const confirmImportModal = document.getElementById('confirmImportModal');
+    const importMessage = document.getElementById('importMessage');
+    const confirmImportBtn = document.getElementById('confirmImportBtn');
+    const cancelImportBtn = document.getElementById('cancelImportBtn');
+
+    importMessage.textContent = `Se van a importar ${dataToImport.length} ${tipo}. ¿Deseas continuar?`;
+    confirmImportModal.classList.remove('hidden');
+
+    confirmImportBtn.onclick = async () => {
+        confirmImportModal.classList.add('hidden');
+        try {
+            let collectionRef;
+            if (tipo === 'jugadores') {
+                collectionRef = getJugadoresCollectionRef(currentUserId);
+            } else if (tipo === 'solicitudes') {
+                collectionRef = getSolicitudesCollectionRef(currentUserId);
+            }
+
+            for (const item of dataToImport) {
+                // Generar un nuevo ID de documento para cada importación
+                await addDoc(collectionRef, { ...item, createdAt: new Date().toISOString() });
+            }
+
+            showMessage(`${dataToImport.length} ${tipo} importados correctamente.`, 'success');
+            if (tipo === 'jugadores') {
+                cargarJugadores();
+            } else if (tipo === 'solicitudes') {
+                cargarSolicitudes();
+            }
+        } catch (error) {
+            console.error(`Error al importar ${tipo}:`, error);
+            showMessage(`Error al importar ${tipo}: ${error.message}`, 'error');
+        }
+    };
+
+    cancelImportBtn.onclick = () => {
+        confirmImportModal.classList.add('hidden');
+        showMessage('Importación cancelada.', 'info');
+    };
+}
+
+// Inyectar botones de importación dinámicamente
+document.addEventListener('DOMContentLoaded', () => {
+    const verJugadoresTab = document.getElementById('verJugadoresTab');
+    const verSolicitudesTab = document.getElementById('verSolicitudesTab');
+
+    // Contenedor para botones de importación de Jugadores
+    if (verJugadoresTab) {
+        const importJugadoresContainer = document.createElement('div');
+        importJugadoresContainer.className = 'admin-only mb-4 p-4 bg-gray-100 rounded-lg flex flex-col items-center justify-center';
+        importJugadoresContainer.innerHTML = `
+            <h3 class="text-lg font-semibold mb-2">Importar Jugadores</h3>
+            <button id="btnImportJugadoresCSV" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+                <i class="fas fa-file-import mr-2"></i>Importar Jugadores CSV
+            </button>
+            <p class="mt-2 text-xs text-gray-500">Formato completo como en exportación</p>
+        `;
+        verJugadoresTab.prepend(importJugadoresContainer); // Añadir al inicio del contenido de la pestaña
+
+        document.getElementById('btnImportJugadoresCSV').addEventListener('click', () => {
+            if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.csv';
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
+                reader.readAsText(file);
+            };
+            fileInput.click();
+        });
+    }
+
+    // Contenedor para botones de importación de Solicitudes
+    if (verSolicitudesTab) {
+        const importSolicitudesContainer = document.createElement('div');
+        importSolicitudesContainer.className = 'admin-only mb-4 p-4 bg-gray-100 rounded-lg flex flex-col items-center justify-center';
+        importSolicitudesContainer.innerHTML = `
+            <h3 class="text-lg font-semibold mb-2">Importar Solicitudes</h3>
+            <button id="btnImportSolicitudesCSV" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+                <i class="fas fa-file-import mr-2"></i>Importar Solicitudes CSV
+            </button>
+            <p class="mt-2 text-xs text-gray-500">Formato completo como en exportación</p>
+        `;
+        verSolicitudesTab.prepend(importSolicitudesContainer); // Añadir al inicio del contenido de la pestaña
+
+        document.getElementById('btnImportSolicitudesCSV').addEventListener('click', () => {
+            if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.csv';
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
+                reader.readAsText(file);
+            };
+            fileInput.click();
+        });
+    }
+
+    // Cargar datos inicialmente (después de que el DOM esté listo y el usuario autenticado)
+    cargarJugadores();
+    cargarSolicitudes();
+});
+
+// **********************************************
+// Gráficos (Chart.js)
+// **********************************************
+
+let solicitudesChart;
+
+function actualizarEstadisticasSolicitudes(solicitudes) {
+    const estadoCounts = {
         'Pendiente': 0,
         'En Proceso': 0,
         'Listo para Recoger': 0,
         'Entregado': 0,
         'Cancelado': 0
     };
-    
-    currentSolicitudesData.forEach(s => {
-        estadosPago[s.estadoPago] = (estadosPago[s.estadoPago] || 0) + 1;
-        estadosEntrega[s.estadoEntrega] = (estadosEntrega[s.estadoEntrega] || 0) + 1;
-    });
-    
-    // Gráfico de estado de pago
-    if (pagoChart) pagoChart.destroy();
-    const pagoCtx = document.getElementById('pagoChart').getContext('2d');
-    pagoChart = new Chart(pagoCtx, {
-        type: 'doughnut',
-        data: {
-            labels: Object.keys(estadosPago),
-            datasets: [{
-                data: Object.values(estadosPago),
-                backgroundColor: [
-                    '#f59e0b',
-                    '#10b981'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
+
+    solicitudes.forEach(solicitud => {
+        if (solicitud.estadoEntrega && estadoCounts.hasOwnProperty(solicitud.estadoEntrega)) {
+            estadoCounts[solicitud.estadoEntrega]++;
         }
     });
-    
-    // Gráfico de estado de entrega
-    if (entregaChart) entregaChart.destroy();
-    const entregaCtx = document.getElementById('entregaChart').getContext('2d');
-    entregaChart = new Chart(entregaCtx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(estadosEntrega),
-            datasets: [{
-                data: Object.values(estadosEntrega),
-                backgroundColor: [
-                    '#ef4444',
-                    '#3b82f6',
-                    '#8b5cf6',
-                    '#10b981',
-                    '#9ca3af'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom'
-                }
-            }
-        }
-    });
-    
-    // Gráfico de ingresos mensuales
-    const ingresosPorMes = {};
-    currentSolicitudesData.forEach(s => {
-        if (s.fechaSolicitud && s.precio) {
-            const fecha = s.fechaSolicitud.toDate();
-            const mes = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-            ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + (s.precio || 0);
-        }
-    });
-    
-    const meses = Object.keys(ingresosPorMes).sort();
-    const ingresos = meses.map(mes => ingresosPorMes[mes]);
-    
-    if (ingresosChart) ingresosChart.destroy();
-    const ingresosCtx = document.getElementById('ingresosChart').getContext('2d');
-    ingresosChart = new Chart(ingresosCtx, {
+
+    const chartData = {
+        labels: Object.keys(estadoCounts),
+        datasets: [{
+            label: 'Número de Solicitudes',
+            data: Object.values(estadoCounts),
+            backgroundColor: [
+                'rgba(255, 205, 86, 0.7)', // Pendiente (Amarillo)
+                'rgba(54, 162, 235, 0.7)', // En Proceso (Azul)
+                'rgba(75, 192, 192, 0.7)', // Listo para Recoger (Verde Teal)
+                'rgba(201, 203, 207, 0.7)', // Entregado (Gris)
+                'rgba(255, 99, 132, 0.7)'  // Cancelado (Rojo)
+            ],
+            borderColor: [
+                'rgb(255, 205, 86)',
+                'rgb(54, 162, 235)',
+                'rgb(75, 192, 192)',
+                'rgb(201, 203, 207)',
+                'rgb(255, 99, 132)'
+            ],
+            borderWidth: 1
+        }]
+    };
+
+    const config = {
         type: 'bar',
-        data: {
-            labels: meses,
-            datasets: [{
-                label: 'Ingresos (€)',
-                data: ingresos,
-                backgroundColor: '#3b82f6',
-                borderWidth: 1
-            }]
-        },
+        data: chartData,
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                }
-            }
-        }
-    });
-    
-    // Gráfico de solicitudes por jugador (Top 5)
-    const jugadoresCount = {};
-    currentSolicitudesData.forEach(s => {
-        const jugador = s.nombreJugador || s.jugadorId;
-        jugadoresCount[jugador] = (jugadoresCount[jugador] || 0) + 1;
-    });
-    
-    const jugadoresSorted = Object.entries(jugadoresCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-    
-    const nombresJugadores = jugadoresSorted.map(j => j[0]);
-    const countSolicitudes = jugadoresSorted.map(j => j[1]);
-    
-    if (jugadoresChart) jugadoresChart.destroy();
-    const jugadoresCtx = document.getElementById('jugadoresChart').getContext('2d');
-    jugadoresChart = new Chart(jugadoresCtx, {
-        type: 'bar',
-        data: {
-            labels: nombresJugadores,
-            datasets: [{
-                label: 'Solicitudes',
-                data: countSolicitudes,
-                backgroundColor: '#8b5cf6',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { if (Number.isInteger(value)) return value; },
+                        color: '#4A5568' // gray-700
+                    },
+                    grid: {
+                        color: '#E2E8F0' // gray-200
+                    }
+                },
                 x: {
-                    beginAtZero: true
+                    ticks: {
+                        color: '#4A5568' // gray-700
+                    },
+                    grid: {
+                        color: '#E2E8F0' // gray-200
+                    }
                 }
             },
             plugins: {
                 legend: {
-                    display: false
+                    labels: {
+                        color: '#4A5568' // gray-700
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Estado de Solicitudes de Encordado',
+                    color: '#2D3748', // gray-800
+                    font: {
+                        size: 16
+                    }
                 }
             }
         }
-    });
-}
+    };
 
-// --- INICIALIZACIÓN ---
-async function loadInitialData() {
-    try {
-        await loadJugadoresParaDropdown();
-        await loadJugadoresParaFiltros();
-        await loadJugadoresParaLista();
-        await loadSolicitudes();
-        
-        // Configurar fecha actual por defecto en nueva solicitud
-        document.getElementById('solicitudFechaSolicitud').valueAsDate = new Date();
-        actualizarPrecioSugerido('solicitud');
-    } catch (error) {
-        console.error("Error cargando datos iniciales:", error);
-        showModalMessage("Error al cargar datos iniciales", "error");
-    }
-}
-
-async function toggleAdmin() {
-    const input = document.getElementById('userToChange');
-    const feedback = document.getElementById('adminChangeResult');
-    const uid = input.value.trim();
-    feedback.textContent = '';
-    
-    if (!uid) {
-        feedback.textContent = "⚠️ Debes ingresar un UID.";
-        feedback.className = "text-red-600";
-        return;
-    }
-
-    try {
-        const currentRole = await checkUserRole(uid);
-        const isAdminNow = currentRole === 'admin';
-        const success = await setAdminRole(uid, !isAdminNow);
-
-        if (success) {
-            feedback.textContent = `✅ Rol actualizado a: ${!isAdminNow ? 'admin' : 'user'}`;
-            feedback.className = "text-green-600";
-        } else {
-            feedback.textContent = "❌ No tienes permisos para cambiar roles.";
-            feedback.className = "text-red-600";
+    const ctx = document.getElementById('solicitudesChart');
+    if (ctx) {
+        if (solicitudesChart) {
+            solicitudesChart.destroy(); // Destruir instancia anterior si existe
         }
-    } catch (error) {
-        console.error("Error al cambiar rol:", error);
-        feedback.textContent = "❌ Error al cambiar el rol. Consulta la consola.";
-        feedback.className = "text-red-600";
+        solicitudesChart = new Chart(ctx, config);
     }
 }
 
-// --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
-async function importarCSV(csvText, type = 'solicitudes') {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(/[,;]/).map(h => h.trim());
-    
-    try {
-        if (type === 'jugadores') {
-            // Import players
-            const batch = writeBatch(db);
-            const jugadoresToImport = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '') continue;
-                
-                const values = lines[i].split(/[,;]/).map(v => v.trim());
-                
-                // Parsear datos del jugador según el formato del CSV
-                const jugadorData = {
-                    codigo: values[0] ? parseInt(values[0]) : null,
-                    nombreCompleto: values[1] || '',
-                    marcaRaqueta: values[2] || '',
-                    modeloRaqueta: values[3] || '',
-                    tensionVertical: values[4] ? parseFloat(values[4]) : null,
-                    tensionHorizontal: values[5] ? parseFloat(values[5]) : null,
-                    tipoCuerda: values[6] || '',
-                    cuerdaIncluida: values[7] ? values[7].toLowerCase() === 'sí' || values[7].toLowerCase() === 'si' : false,
-                    fechaRegistro: Timestamp.now(),
-                    fechaUltimaActualizacion: Timestamp.now()
-                };
-                
-                if (!jugadorData.codigo || !jugadorData.nombreCompleto) continue;
-                
-                // Verificar si el jugador ya existe
-                const existingQuery = query(jugadoresCollectionRef, where("codigo", "==", jugadorData.codigo));
-                const existingSnapshot = await getDocs(existingQuery);
-                
-                if (!existingSnapshot.empty) {
-                    // Actualizar jugador existente
-                    const existingDoc = existingSnapshot.docs[0];
-                    await updateDoc(existingDoc.ref, {
-                        nombreCompleto: jugadorData.nombreCompleto,
-                        marcaRaqueta: jugadorData.marcaRaqueta,
-                        modeloRaqueta: jugadorData.modeloRaqueta,
-                        tensionVertical: jugadorData.tensionVertical,
-                        tensionHorizontal: jugadorData.tensionHorizontal,
-                        tipoCuerda: jugadorData.tipoCuerda,
-                        cuerdaIncluida: jugadorData.cuerdaIncluida,
-                        fechaUltimaActualizacion: Timestamp.now()
-                    });
-                } else {
-                    // Crear nuevo jugador
-                    const newDocRef = doc(jugadoresCollectionRef);
-                    batch.set(newDocRef, jugadorData);
-                }
-                
-                jugadoresToImport.push(jugadorData);
-            }
-            
-            await batch.commit();
-            showModalMessage(`${jugadoresToImport.length} jugadores importados/actualizados correctamente`, 'success');
-            loadJugadoresParaDropdown();
-            loadJugadoresParaFiltros();
-            loadJugadoresParaLista();
-            
-        } else if (type === 'solicitudes') {
-            // Import stringing requests
-            const batch = writeBatch(db);
-            const solicitudesToImport = [];
-            const jugadoresMap = {};
-            
-            // First get all players to map codes to IDs
-            const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
-            jugadoresSnapshot.forEach(doc => {
-                jugadoresMap[doc.data().codigo] = doc.id;
-            });
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '') continue;
-                
-                const values = lines[i].split(/[,;]/).map(v => v.trim());
-                if (values.length < headers.length) continue;
-                
-                const [
-                    codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
-                    tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
-                    fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
-                    estadoEntrega, notas, fechaPago
-                ] = values;
-                
-                const jugadorId = jugadoresMap[codigoJugador];
-                if (!jugadorId) {
-                    console.warn(`Jugador con código ${codigoJugador} no encontrado`);
-                    continue;
-                }
-                
-                // Parse dates (dd/mm/yyyy format)
-                const parseDate = (dateStr) => {
-                    if (!dateStr || dateStr === '') return null;
-                    const [day, month, year] = dateStr.split('/');
-                    return new Date(year, month - 1, day);
-                };
-                
-                const solicitudData = {
-                    jugadorId,
-                    nombreJugador,
-                    marcaRaqueta: marcaRaqueta || '',
-                    modeloRaqueta: modeloRaqueta || '',
-                    tensionVertical: parseFloat(tensionVertical) || 0,
-                    tensionHorizontal: parseFloat(tensionHorizontal) || 0,
-                    tipoCuerda: tipoCuerda || '',
-                    cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí' || cuerdaIncluida.toLowerCase() === 'si',
-                    fechaSolicitud: Timestamp.fromDate(parseDate(fechaSolicitud)),
-                    fechaEntregaEstimada: fechaEntregaEstimada ? Timestamp.fromDate(parseDate(fechaEntregaEstimada)) : null,
-                    precio: parseFloat(precio) || 0,
-                    estadoPago: estadoPago || 'Pendiente',
-                    estadoEntrega: estadoEntrega || 'Pendiente',
-                    notas: notas || '',
-                    fechaPago: fechaPago ? Timestamp.fromDate(parseDate(fechaPago)) : null,
-                    fechaCreacion: Timestamp.now(),
-                    fechaUltimaActualizacion: Timestamp.now()
-                };
-                
-                const newDocRef = doc(solicitudesCollectionRef);
-                batch.set(newDocRef, solicitudData);
-                solicitudesToImport.push(solicitudData);
-            }
-            
-            await batch.commit();
-            showModalMessage(`${solicitudesToImport.length} solicitudes importadas correctamente`, 'success');
-            loadSolicitudes();
-        }
-    } catch (error) {
-        console.error(`Error importing ${type}:`, error);
-        showModalMessage(`Error al importar ${type}: ${error.message}`, 'error');
-    }
-}
-
-// Iniciar la aplicación cuando el DOM esté listo
+// Asegurarse de que el gráfico se actualice al cambiar de pestaña a "Resumen"
 document.addEventListener('DOMContentLoaded', () => {
-// Inicializa Firebase y escucha cambios de autenticación
-  // Este evento ya está manejado por la primera instancia de onAuthStateChanged
-    // No necesitas duplicarlo
+    const resumenTabLink = document.querySelector('.tab-link[data-tab="tab-resumen"]');
+    if (resumenTabLink) {
+        resumenTabLink.addEventListener('click', () => {
+            // No es necesario llamar a cargarSolicitudes aquí, ya que se llama en onAuthStateChanged
+            // y la tabla de solicitudes se actualiza al cargar. Solo necesitamos re-renderizar el gráfico.
+            cargarSolicitudes(); // Esto asegura que los datos del gráfico se refresquen si los datos de la tabla cambian
+        });
+    }
 });
-    
-    // Add buttons for bulk imports
-    const importContainer = document.createElement('div');
-    importContainer.className = 'my-6 p-4 bg-gray-50 rounded-lg shadow';
-    importContainer.innerHTML = `
-        <h3 class="text-lg font-medium text-gray-800 mb-3">Importación Masiva</h3>
-        <div class="flex flex-col sm:flex-row gap-4 items-start">
-            <div>
-                <button id="btnImportJugadoresCSV" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-                    <i class="fas fa-users mr-2"></i>Importar Jugadores CSV
-                </button>
-                <p class="mt-2 text-xs text-gray-500">Formato: Código,Nombre,Marca,Modelo,Tensión V,Tensión H,Tipo Cuerda,Cuerda Incluida</p>
-            </div>
-            <div>
-                <button id="btnImportSolicitudesCSV" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-                    <i class="fas fa-file-import mr-2"></i>Importar Solicitudes CSV
-                </button>
-                <p class="mt-2 text-xs text-gray-500">Formato completo como en exportación</p>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('verJugadoresTab').prepend(importContainer);
-    
-    document.getElementById('btnImportJugadoresCSV').addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.csv';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    });
-    
-    document.getElementById('btnImportSolicitudesCSV').addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.csv';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    });
-
-window.auth = auth;
-window.db = db;
-window.userId = userId;
-window.checkUserRole = checkUserRole;
