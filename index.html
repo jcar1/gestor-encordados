@@ -9,349 +9,592 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="p-4 md:p-8 font-[Inter]">
-
-    <!-- Message Container -->
-    <div id="messageContainer" class="fixed top-4 right-4 p-4 rounded-lg shadow-md z-50 transition-transform transform translate-x-full"></div>
+<body class="p-4 md:p-8">
 
     <!-- Login Modal -->
     <div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm border border-gray-200">
-            <h2 class="text-3xl font-bold mb-6 text-center text-gray-800">Iniciar Sesión</h2>
-            <form id="loginForm" class="space-y-5">
-                <div>
-                    <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
-                    <input type="email" id="loginEmail" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="tu@ejemplo.com" required>
-                </div>
-                <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                    <input type="password" id="loginPassword" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Tu contraseña" required>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">
-                    Iniciar Sesión
-                </button>
-                <div id="error-login" class="text-red-500 text-sm text-center mt-3"></div>
+        <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+            <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
+            <form id="loginForm" class="space-y-4">
+                <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
+                <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
             </form>
+            <div id="loginError" class="text-red-600 mt-2 text-center"></div>
         </div>
     </div>
+        <!-- Panel solo visible para admin -->
+    <div id="adminPanel" style="display:none;" class="bg-yellow-50 border border-yellow-300 p-4 rounded-lg my-4">
+      <h2 class="text-lg font-bold mb-2 text-yellow-800">Panel de Administración</h2>
+      <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+        <input type="text" id="userToChange" placeholder="User ID del usuario" class="p-2 border border-gray-300 rounded w-full sm:w-1/2">
+        <button onclick="toggleAdmin()" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded">
+          Activar/Desactivar Admin
+        </button>
+      </div>
+      <p class="text-sm text-gray-600 mt-2">Debes ingresar el UID exacto del usuario en Firestore.</p>
+      <p id="adminChangeResult" class="text-sm font-medium mt-2"></p>
+    </div>
+    <button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
 
-    <!-- App Content Container -->
-    <div id="appContent" class="hidden max-w-7xl mx-auto bg-white rounded-lg shadow-xl overflow-hidden md:flex flex-col h-[calc(100vh-4rem)]">
-        <!-- Sidebar / Navigation -->
-        <div class="md:w-64 bg-blue-700 p-6 flex flex-col justify-between">
-            <div>
-                <h1 class="text-3xl font-bold text-white mb-8">
-                    <i class="fas fa-tennis-ball mr-2"></i>Gestor de Encordados
-                </h1>
-                <nav class="space-y-3">
-                    <a href="#" class="tab-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-600 transition duration-200" data-tab="tab-resumen">
-                        <i class="fas fa-chart-pie mr-3 text-lg"></i>
-                        Resumen
-                    </a>
-                    <a href="#" class="tab-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-600 transition duration-200" data-tab="tab-solicitudes">
-                        <i class="fas fa-clipboard-list mr-3 text-lg"></i>
-                        Solicitudes
-                    </a>
-                    <a href="#" class="tab-link flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-600 transition duration-200" data-tab="tab-jugadores">
-                        <i class="fas fa-users mr-3 text-lg"></i>
-                        Jugadores
-                    </a>
-                    <!-- Nueva pestaña de administración, solo visible para administradores -->
-                    <a href="#" id="administracionTabLink" class="tab-link admin-only flex items-center p-3 rounded-lg text-blue-100 hover:bg-blue-600 transition duration-200" data-tab="tab-administracion" style="display:none;">
-                        <i class="fas fa-user-shield mr-3 text-lg"></i>
-                        Administración
-                    </a>
-                </nav>
-            </div>
-            <button id="logoutBtn" class="bg-blue-500 hover:bg-blue-400 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-200 ease-in-out mt-8 flex items-center justify-center">
-                <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
-            </button>
+    <div class="container mx-auto max-w-7xl bg-white p-6 md:p-8 rounded-xl shadow-2xl">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">
+                <i class="fas fa-racquet mr-2 text-blue-600"></i>Gestor de Encordados
+            </h1>
+            <p class="text-gray-600 mt-1">Bienvenido. User ID: <span id="userIdDisplay" class="font-semibold">Cargando...</span></p>
+        </header>
+
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex flex-wrap -mb-px" aria-label="Tabs">
+                <button onclick="showTab('nuevaSolicitudTab')" class="tab-button active text-sm md:text-base whitespace-nowrap mr-2 py-3 px-4 border-b-2 font-medium rounded-t-lg hover:text-gray-600 hover:border-gray-300">
+                    <i class="fas fa-plus-circle mr-1"></i>Nueva Solicitud
+                </button>
+                <button onclick="showTab('verSolicitudesTab')" class="tab-button text-sm md:text-base whitespace-nowrap mr-2 py-3 px-4 border-b-2 font-medium rounded-t-lg hover:text-gray-600 hover:border-gray-300">
+                    <i class="fas fa-list-alt mr-1"></i>Ver Solicitudes
+                </button>
+                <button onclick="showTab('estadisticasTab')" class="tab-button text-sm md:text-base whitespace-nowrap mr-2 py-3 px-4 border-b-2 font-medium rounded-t-lg hover:text-gray-600 hover:border-gray-300">
+                    <i class="fas fa-chart-pie mr-1"></i>Estadísticas
+                </button>
+                <button onclick="showTab('registrarJugadorTab')" class="tab-button text-sm md:text-base whitespace-nowrap mr-2 py-3 px-4 border-b-2 font-medium rounded-t-lg hover:text-gray-600 hover:border-gray-300">
+                    <i class="fas fa-user-plus mr-1"></i>Registrar Jugador
+                </button>
+                <button onclick="showTab('verJugadoresTab')" class="tab-button text-sm md:text-base whitespace-nowrap py-3 px-4 border-b-2 font-medium rounded-t-lg hover:text-gray-600 hover:border-gray-300">
+                    <i class="fas fa-users mr-1"></i>Ver Jugadores
+                </button>
+            </nav>
         </div>
-
-        <!-- Main Content Area -->
-        <div class="flex-1 p-6 bg-gray-50 overflow-y-auto">
-
-            <!-- Resumen Tab Content -->
-            <div id="tab-resumen" class="tab-pane hidden p-4 md:p-6 bg-white rounded-lg shadow-md">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Resumen de Actividad</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-                    <!-- Cards de estadísticas rápidas (ejemplos) -->
-                    <div class="bg-blue-100 p-5 rounded-lg shadow-sm flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-blue-800">Solicitudes Totales</p>
-                            <p class="text-3xl font-bold text-blue-900" id="totalSolicitudes">0</p>
-                        </div>
-                        <i class="fas fa-clipboard-list text-4xl text-blue-400"></i>
+<!-- Nueva Solicitud Tab -->
+<<!-- Nueva Solicitud Tab -->
+            <div id="nuevaSolicitudTab" class="tab-content">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Crear Nueva Solicitud de Encordado</h2>
+                <form id="formNuevaSolicitud" class="space-y-6">
+                    <div class="autocomplete-container">
+                        <label for="solicitudJugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Buscar Jugador:</label>
+                        <input type="text" id="solicitudJugadorNombre" name="jugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Escriba código o nombre...">
+                        <input type="hidden" id="solicitudJugadorId" name="jugadorId">
+                        <div id="error-jugadorId" class="error-message"></div>
                     </div>
-                    <div class="bg-green-100 p-5 rounded-lg shadow-sm flex items-center justify-between">
+                   
+                   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <p class="text-sm font-medium text-green-800">Listas para Recoger</p>
-                            <p class="text-3xl font-bold text-green-900" id="listasRecoger">0</p>
+                            <label for="solicitudMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
+                            <input type="text" id="solicitudMarcaRaqueta" name="marcaRaqueta" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-marcaRaqueta" class="error-message"></div>
                         </div>
-                        <i class="fas fa-check-circle text-4xl text-green-400"></i>
+                        <div>
+                            <label for="solicitudModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta:</label>
+                            <input type="text" id="solicitudModeloRaqueta" name="modeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
                     </div>
-                    <div class="bg-yellow-100 p-5 rounded-lg shadow-sm flex items-center justify-between">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <p class="text-sm font-medium text-yellow-800">Pendientes</p>
-                            <p class="text-3xl font-bold text-yellow-900" id="pendientes">0</p>
+                            <label for="solicitudTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical (lbs/kg):</label>
+                            <input type="number" id="solicitudTensionVertical" name="tensionVertical" step="0.1" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-tensionVertical" class="error-message"></div>
                         </div>
-                        <i class="fas fa-hourglass-half text-4xl text-yellow-400"></i>
+                        <div>
+                            <label for="solicitudTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal (lbs/kg):</label>
+                            <input type="number" id="solicitudTensionHorizontal" name="tensionHorizontal" step="0.1" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-tensionHorizontal" class="error-message"></div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Gráfico de estado de solicitudes -->
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-bold mb-4 text-gray-800">Estado de Solicitudes</h3>
-                    <div class="relative h-80">
-                        <canvas id="solicitudesChart"></canvas>
+                    <div>
+                        <label for="solicitudTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda (si la trae el cliente):</label>
+                        <input type="text" id="solicitudTipoCuerda" name="tipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                </div>
-            </div>
-
-            <!-- Solicitudes Tab Content -->
-            <div id="tab-solicitudes" class="tab-pane hidden">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Gestión de Solicitudes</h2>
-
-                <!-- Formulario para añadir nueva solicitud -->
-                <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <h3 class="text-xl font-bold mb-4 text-gray-800">Añadir Nueva Solicitud</h3>
-                    <form id="solicitudForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="solicitudNombreJugador" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Jugador <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="solicitudNombreJugador" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-solicitudNombreJugador" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="solicitudModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="solicitudModeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-solicitudModeloRaqueta" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="solicitudTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="solicitudTipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-solicitudTipoCuerda" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="solicitudTension" class="block text-sm font-medium text-gray-700 mb-1">Tensión (lbs/kg) <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="solicitudTension" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" placeholder="Ej: 52/23.5" required>
-                            <div id="error-solicitudTension" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="solicitudFechaSolicitud" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Solicitud <span class="text-red-500">*</span>:</label>
-                            <input type="date" id="solicitudFechaSolicitud" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-solicitudFechaSolicitud" class="error-message"></div>
+                            <label for="solicitudFechaSolicitud" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Solicitud:</label>
+                            <input type="date" id="solicitudFechaSolicitud" name="fechaSolicitud" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-fechaSolicitud" class="error-message"></div>
                         </div>
                         <div>
                             <label for="solicitudFechaEntregaEstimada" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Entrega Estimada:</label>
-                            <input type="date" id="solicitudFechaEntregaEstimada" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                            <input type="date" id="solicitudFechaEntregaEstimada" name="fechaEntregaEstimada" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center mt-2 mb-2">
+                        <input type="checkbox" id="solicitudCuerdaIncluida" name="cuerdaIncluida" class="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                        <label for="solicitudCuerdaIncluida" class="ml-2 block text-sm font-medium text-gray-700">Cuerda Incluida (suministrada por nosotros)</label>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="solicitudPrecio" class="block text-sm font-medium text-gray-700 mb-1">Precio Sugerido/Final (€):</label>
+                            <input type="number" id="solicitudPrecio" name="precio" step="0.01" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
-                            <label for="solicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado de Entrega <span class="text-red-500">*</span>:</label>
-                            <select id="solicitudEstadoEntrega" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
+                            <label for="solicitudEstadoPago" class="block text-sm font-medium text-gray-700 mb-1">Estado del Pago:</label>
+                            <select id="solicitudEstadoPago" name="estadoPago" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Pagado">Pagado</option>
+                            </select>
+                            <div id="error-estadoPago" class="error-message"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="solicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
+                        <textarea id="solicitudNotas" name="notas" rows="3" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out">
+                            <i class="fas fa-save mr-2"></i>Guardar Solicitud
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Ver Solicitudes Tab -->
+            <div id="verSolicitudesTab" class="tab-content" style="display: none;">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Listado de Solicitudes de Encordado</h2>
+                
+                <div class="mb-6 p-4 bg-gray-50 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">Filtrar Solicitudes:</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label for="filtroJugador" class="block text-sm font-medium text-gray-700 mb-1">Por Jugador:</label>
+                            <select id="filtroJugador" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Todos los jugadores</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filtroEstadoPago" class="block text-sm font-medium text-gray-700 mb-1">Por Estado de Pago:</label>
+                            <select id="filtroEstadoPago" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Todos</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Pagado">Pagado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filtroEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Por Estado de Entrega:</label>
+                            <select id="filtroEstadoEntrega" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Todos</option>
                                 <option value="Pendiente">Pendiente de Iniciar</option>
                                 <option value="En Proceso">En Proceso</option>
                                 <option value="Listo para Recoger">Listo para Recoger</option>
                                 <option value="Entregado">Entregado</option>
                                 <option value="Cancelado">Cancelado</option>
                             </select>
-                            <div id="error-solicitudEstadoEntrega" class="error-message"></div>
                         </div>
-                        <div class="md:col-span-2">
-                            <label for="solicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
-                            <textarea id="solicitudNotas" rows="2" class="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea>
+                        <div>
+                            <label for="filtroFechaSolicitudDesde" class="block text-sm font-medium text-gray-700 mb-1">F. Solicitud Desde:</label>
+                            <input type="date" id="filtroFechaSolicitudDesde" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
-                        <div class="md:col-span-2 flex items-center">
-                            <input type="checkbox" id="solicitudPublico" class="h-4 w-4 text-blue-600 border-gray-300 rounded mr-2">
-                            <label for="solicitudPublico" class="text-sm font-medium text-gray-700">Marcar como Pública</label>
-                            <span class="ml-2 text-xs text-gray-500">(Visible para otros usuarios administradores)</span>
+                        <div>
+                            <label for="filtroFechaSolicitudHasta" class="block text-sm font-medium text-gray-700 mb-1">F. Solicitud Hasta:</label>
+                            <input type="date" id="filtroFechaSolicitudHasta" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                         </div>
-                        <div class="md:col-span-2 flex justify-end">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 ease-in-out flex items-center">
-                                <i class="fas fa-plus-circle mr-2"></i>Añadir Solicitud
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end mt-4">
+                        <div>
+                            <label for="filtroFechaPagoDesde" class="block text-sm font-medium text-gray-700 mb-1">F. Pago Desde:</label>
+                            <input type="date" id="filtroFechaPagoDesde" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="filtroFechaPagoHasta" class="block text-sm font-medium text-gray-700 mb-1">F. Pago Hasta:</label>
+                            <input type="date" id="filtroFechaPagoHasta" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="col-span-1 sm:col-span-2 lg:col-span-1 xl:col-span-3 flex items-end space-x-2">
+                            <button id="btnAplicarFiltros" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+                                <i class="fas fa-filter mr-1"></i>Aplicar
+                            </button>
+                            <button id="btnLimpiarFiltros" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+                                <i class="fas fa-times mr-1"></i>Limpiar
                             </button>
                         </div>
-                    </form>
-                </div>
-
-                <!-- Tabla de solicitudes -->
-                <div id="verSolicitudesTab" class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-bold mb-4 text-gray-800">Listado de Solicitudes</h3>
-                    <div class="flex justify-end mb-4">
-                        <button id="exportarSolicitudesCSV" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
-                            <i class="fas fa-file-export mr-2"></i>Exportar Solicitudes CSV
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jugador</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raqueta</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cuerda</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tensión</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Solicitud</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Est. Entrega</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Real Entrega</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creador</th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="solicitudesTableBody" class="bg-white divide-y divide-gray-200">
-                                <!-- Filas de solicitudes se renderizarán aquí -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
-            </div>
-
-            <!-- Jugadores Tab Content -->
-            <div id="tab-jugadores" class="tab-pane hidden">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Gestión de Jugadores</h2>
-
-                <!-- Formulario para añadir nuevo jugador -->
-                <div class="bg-white p-6 rounded-lg shadow-md mb-6">
-                    <h3 class="text-xl font-bold mb-4 text-gray-800">Añadir Nuevo Jugador</h3>
-                    <form id="jugadorForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="jugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre <span class="text-red-500">*</span>:</label>
-                            <input type="text" id="jugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-jugadorNombre" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="jugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span>:</label>
-                            <input type="email" id="jugadorEmail" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" required>
-                            <div id="error-jugadorEmail" class="error-message"></div>
-                        </div>
-                        <div>
-                            <label for="jugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                            <input type="tel" id="jugadorTelefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label for="jugadorNivel" class="block text-sm font-medium text-gray-700 mb-1">Nivel:</label>
-                            <input type="text" id="jugadorNivel" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        </div>
-                        <div>
-                            <label for="jugadorManoDominante" class="block text-sm font-medium text-gray-700 mb-1">Mano Dominante:</label>
-                            <select id="jugadorManoDominante" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                                <option value="">Seleccionar</option>
-                                <option value="Diestro">Diestro</option>
-                                <option value="Zurdo">Zurdo</option>
-                            </select>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label for="jugadorNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
-                            <textarea id="jugadorNotas" rows="2" class="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea>
-                        </div>
-                        <div class="md:col-span-2 flex items-center">
-                            <input type="checkbox" id="jugadorPublico" class="h-4 w-4 text-blue-600 border-gray-300 rounded mr-2">
-                            <label for="jugadorPublico" class="text-sm font-medium text-gray-700">Marcar como Público</label>
-                            <span class="ml-2 text-xs text-gray-500">(Visible para otros usuarios administradores)</span>
-                        </div>
-                        <div class="md:col-span-2 flex justify-end">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-200 ease-in-out flex items-center">
-                                <i class="fas fa-user-plus mr-2"></i>Añadir Jugador
+                div class="my-6 p-4 bg-gray-50 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-800 mb-3">Importar / Exportar Solicitudes</h3>
+                    <div class="flex flex-col sm:flex-row gap-4 items-start">
+                        <div class="flex-1">
+                            <label for="importFile" class="block text-sm font-medium text-gray-700 mb-1">Importar desde CSV:</label>
+                            <input type="file" id="importFile" accept=".csv" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                            <button id="btnImportCsv" class="mt-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out text-sm">
+                                <i class="fas fa-file-import mr-2"></i>Importar Archivo
                             </button>
                         </div>
-                    </form>
+                        <div class="flex-1 sm:text-right">
+                            <button id="btnExportCsv" class="mt-2 w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out text-sm">
+                                <i class="fas fa-file-export mr-2"></i>Exportar a CSV (Filtradas)
+                            </button>
+                        </div>
+                        <div class="flex-1 sm:text-right">
+                            <button id="btnDeleteSelected" class="mt-2 w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out text-sm">
+                                <i class="fas fa-trash-alt mr-2"></i>Eliminar Seleccionadas
+                            </button>
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500">
+    			<strong>Formato CSV esperado para importar:</strong><br>
+    			Encabezados: <code>Código Jugador,Nombre Jugador,Marca Raqueta,Modelo Raqueta,Tensión Vertical,Tensión Horizontal,Tipo Cuerda,Cuerda Incluida,Fecha Solicitud,Fecha Entrega Estimada,Precio,Estado Pago,Estado Entrega,Notas,Fecha Pago</code><br>
+  			<code>Cuerda Incluida</code> debe ser "Sí" o "No". Fechas como <strong>dd/mm/aaaa</strong>.
+		   </p>
                 </div>
 
-                <!-- Tabla de jugadores -->
-                <div id="verJugadoresTab" class="bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-bold mb-4 text-gray-800">Listado de Jugadores</h3>
-                    <div class="flex justify-end mb-4">
-                        <button id="exportarJugadoresCSV" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
-                            <i class="fas fa-file-export mr-2"></i>Exportar Jugadores CSV
+                <div id="listaSolicitudesContainer" class="table-responsive">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <input type="checkbox" id="selectAllSolicitudes" class="form-checkbox h-4 w-4">
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jugador</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raqueta</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tensión (V/H)</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Solicitud</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Entrega</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio (€)</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pago</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entrega</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaSolicitudes" class="bg-white divide-y divide-gray-200">
+                            <tr><td colspan="10" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Resumen de solicitudes -->
+					<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Total Solicitudes</h4>
+							<p id="resumenTotalSolicitudes" class="text-xl font-bold text-blue-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Pagadas</h4>
+							<p id="resumenSolicitudesPagadas" class="text-xl font-bold text-green-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Pendientes</h4>
+							<p id="resumenSolicitudesPendientes" class="text-xl font-bold text-yellow-600">0</p>
+						</div>
+						<div class="stat-card">
+							<h4 class="text-sm font-medium text-gray-700">Total Ingresos</h4>
+							<p id="resumenTotalIngresos" class="text-xl font-bold text-purple-600">0.00€</p>
+						</div>
+				  </div>
+        </div>
+</div>	
+<!-- Estadísticas Tab -->
+            <div id="estadisticasTab" class="tab-content" style="display: none;">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Panel de Estadísticas</h2>
+                <p class="mb-4 text-sm text-gray-600">Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
+                
+                <!-- Tarjetas de resumen -->
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <h3>Total Solicitudes</h3>
+                        <p id="statTotalSolicitudes" class="text-blue-600">0</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Ingresos Totales</h3>
+                        <p id="statIngresosTotales" class="text-green-600">0.00 €</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Precio Promedio</h3>
+                        <p id="statPrecioPromedio" class="text-indigo-600">0.00 €</p>
+                    </div>
+                    <div class="stats-card">
+                        <h3>Solicitudes Hoy</h3>
+                        <p id="statSolicitudesHoy" class="text-purple-600">0</p>
+                    </div>
+					<div class="stats-card">
+						<h3>Ingresos últimos 30 días</h3>
+						<p id="statIngresos30Dias" class="text-purple-600">0.00 €</p>
+				   </div>
+					<div class="stats-card">
+						<h3>Promedio diario</h3>
+						<p id="statPromedioDiario" class="text-indigo-600">0.00 €</p>
+				    </div>
+				</div>
+                
+                <!-- Gráficos principales -->
+                <div class="charts-grid">
+                    <!-- Gráfico de estado de pago -->
+                    <div class="chart-card">
+                        <h3>Estado de Pago</h3>
+                        <canvas id="pagoChart"></canvas>
+                    </div>
+                    
+                    <!-- Gráfico de estado de entrega -->
+                    <div class="chart-card">
+                        <h3>Estado de Entrega</h3>
+                        <canvas id="entregaChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Gráficos secundarios -->
+                <div class="charts-grid mt-4">
+                    <!-- Gráfico de ingresos mensuales -->
+                    <div class="chart-card">
+                        <h3>Ingresos Mensuales</h3>
+                        <canvas id="ingresosChart"></canvas>
+                    </div>
+                    
+                    <!-- Gráfico de solicitudes por jugador -->
+                    <div class="chart-card">
+                        <h3>Top 5 Jugadores</h3>
+                        <canvas id="jugadoresChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registrar Jugador Tab -->
+            <div id="registrarJugadorTab" class="tab-content" style="display: none;">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Registrar Nuevo Jugador</h2>
+                <form id="formRegistrarJugador" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="jugadorCodigo" class="block text-sm font-medium text-gray-700 mb-1">Código de Jugador:</label>
+                            <input type="text" id="jugadorCodigo" name="codigo" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-codigo" class="error-message"></div>
+                        </div>
+                        <div>
+                            <label for="jugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
+                            <input type="text" id="jugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-nombreCompleto" class="error-message"></div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="jugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono (Opcional):</label>
+                            <input type="text" id="jugadorTelefono" name="telefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="jugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email (Opcional):</label>
+                            <input type="email" id="jugadorEmail" name="email" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <div id="error-email" class="error-message"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-lg font-medium text-gray-800 mb-4">Preferencias de Raqueta</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="jugadorMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
+                                <input type="text" id="jugadorMarcaRaqueta" name="marcaRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="jugadorModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta:</label>
+                                <input type="text" id="jugadorModeloRaqueta" name="modeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                            <div>
+                                <label for="jugadorTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical (lbs/kg):</label>
+                                <input type="number" id="jugadorTensionVertical" name="tensionVertical" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label for="jugadorTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal (lbs/kg):</label>
+                                <input type="number" id="jugadorTensionHorizontal" name="tensionHorizontal" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label for="jugadorTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda Preferida:</label>
+                            <input type="text" id="jugadorTipoCuerda" name="tipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out">
+                            <i class="fas fa-user-check mr-2"></i>Registrar Jugador
                         </button>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nivel</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mano Dominante</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notas</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Creador</th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="jugadoresTableBody" class="bg-white divide-y divide-gray-200">
-                                <!-- Filas de jugadores se renderizarán aquí -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                </form>
             </div>
 
-            <!-- Administración Tab Content (NUEVO) -->
-            <div id="tab-administracion" class="tab-pane hidden p-4 md:p-6 bg-white rounded-lg shadow-md">
-                <h2 class="text-2xl font-bold mb-4 text-gray-800">Administración de Usuarios</h2>
-                <div class="admin-only" style="display:none;"> <!-- Solo visible para admins -->
-                    <p class="mb-4 text-gray-600">Desde aquí, puedes asignar el rol de 'administrador' a otros usuarios. Solo los usuarios que ya hayan iniciado sesión al menos una vez aparecerán en la base de datos de roles.</p>
-
-                    <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                        <h3 class="text-xl font-bold mb-3 text-gray-800">Asignar Rol de Administrador</h3>
-                        <label for="adminEmailInput" class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico del Usuario:</label>
-                        <input type="email" id="adminEmailInput" class="w-full p-3 border border-gray-300 rounded-md shadow-sm" placeholder="ejemplo@dominio.com">
-                        <button id="assignAdminRoleBtn" class="mt-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-200 ease-in-out">Asignar Rol de Administrador</button>
-                    </div>
-
-                    <h3 class="text-xl font-bold mb-3 text-gray-800">Usuarios Existentes:</h3>
-                    <ul id="userList" class="space-y-3">
-                        <!-- La lista de usuarios se poblará dinámicamente aquí por JavaScript -->
-                        <li class="text-gray-500 p-3 border border-gray-200 rounded-md shadow-sm">Cargando usuarios...</li>
-                    </ul>
+            <!-- Ver Jugadores Tab -->
+            <div id="verJugadoresTab" class="tab-content" style="display: none;">
+                <h2 class="text-2xl font-semibold mb-6 text-gray-700">Listado de Jugadores</h2>
+                <div id="listaJugadoresContainer" class="table-responsive">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre Completo</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raqueta</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">F. Registro</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaJugadores" class="bg-white divide-y divide-gray-200">
+                           <tr><td colspan="7" class="text-center p-4 text-gray-500">Cargando jugadores...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
+        </main>
+    </div>
+    <!-- Modales -->
+    <div id="messageModal" class="modal">
+        <div class="modal-content text-center">
+            <p id="modalMessageText" class="text-lg mb-4"></p>
+            <button id="modalCloseButton" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg">Cerrar</button>
         </div>
     </div>
 
-    <!-- Edit Solicitud Modal -->
-    <div id="editSolicitudModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-4">
-            <h3 class="text-2xl font-bold mb-5 text-gray-800">Editar Solicitud</h3>
-            <form id="editSolicitudForm" class="space-y-4">
+    <div id="confirmModal" class="modal">
+        <div class="modal-content text-center">
+            <p id="confirmModalText" class="text-lg mb-6"></p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmModalCancel" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-5 rounded-lg">Cancelar</button>
+                <button id="confirmModalConfirm" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-5 rounded-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editJugadorModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-semibold mb-5">Editar Jugador</h3>
+            <form id="formEditJugador" class="space-y-4">
+                <input type="hidden" id="editJugadorId">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="editSolicitudNombreJugador" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Jugador <span class="text-red-500">*</span>:</label>
-                        <input type="text" id="editSolicitudNombreJugador" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editNombreJugador" class="error-message"></div>
+                        <label for="editJugadorCodigo" class="block text-sm font-medium text-gray-700 mb-1">Código de Jugador:</label>
+                        <input type="text" id="editJugadorCodigo" name="codigo" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editCodigo" class="error-message"></div>
                     </div>
                     <div>
-                        <label for="editSolicitudModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta <span class="text-red-500">*</span>:</label>
+                        <label for="editJugadorNombreCompleto" class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo:</label>
+                        <input type="text" id="editJugadorNombreCompleto" name="nombreCompleto" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editNombreCompleto" class="error-message"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editJugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                        <input type="text" id="editJugadorTelefono" name="telefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="editJugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
+                        <input type="email" id="editJugadorEmail" name="email" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        <div id="error-editEmail" class="error-message"></div>
+                    </div>
+                </div>
+                
+                <div class="border-t border-gray-200 pt-4">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Preferencias de Raqueta</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="editJugadorMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca de Raqueta:</label>
+                            <input type="text" id="editJugadorMarcaRaqueta" name="marcaRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="editJugadorModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo de Raqueta:</label>
+                            <input type="text" id="editJugadorModeloRaqueta" name="modeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="editJugadorTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical (lbs/kg):</label>
+                            <input type="number" id="editJugadorTensionVertical" name="tensionVertical" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="editJugadorTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal (lbs/kg):</label>
+                            <input type="number" id="editJugadorTensionHorizontal" name="tensionHorizontal" step="0.1" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="editJugadorTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda Preferida:</label>
+                        <input type="text" id="editJugadorTipoCuerda" name="tipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-3">
+                    <button type="button" id="cancelEditJugador" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editSolicitudModal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-xl font-semibold mb-5">Editar Solicitud de Encordado</h3>
+            <form id="formEditSolicitud" class="space-y-4">
+                <input type="hidden" id="editSolicitudId">
+                
+                <div>
+                    <label for="editSolicitudJugadorIdDisplay" class="block text-sm font-medium text-gray-700 mb-1">Jugador:</label>
+                    <input type="text" id="editSolicitudJugadorIdDisplay" disabled class="w-full p-3 border border-gray-300 rounded-md shadow-sm bg-gray-100">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editSolicitudMarcaRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Marca Raqueta:</label>
+                        <input type="text" id="editSolicitudMarcaRaqueta" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <div id="error-editMarcaRaqueta" class="error-message"></div>
+                    </div>
+                    <div>
+                        <label for="editSolicitudModeloRaqueta" class="block text-sm font-medium text-gray-700 mb-1">Modelo Raqueta:</label>
                         <input type="text" id="editSolicitudModeloRaqueta" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editModeloRaqueta" class="error-message"></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editSolicitudTensionVertical" class="block text-sm font-medium text-gray-700 mb-1">Tensión Vertical:</label>
+                        <input type="number" id="editSolicitudTensionVertical" step="0.1" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <div id="error-editTensionVertical" class="error-message"></div>
                     </div>
                     <div>
-                        <label for="editSolicitudTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda <span class="text-red-500">*</span>:</label>
-                        <input type="text" id="editSolicitudTipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editTipoCuerda" class="error-message"></div>
+                        <label for="editSolicitudTensionHorizontal" class="block text-sm font-medium text-gray-700 mb-1">Tensión Horizontal:</label>
+                        <input type="number" id="editSolicitudTensionHorizontal" step="0.1" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <div id="error-editTensionHorizontal" class="error-message"></div>
                     </div>
+                </div>
+                
+                <div>
+                    <label for="editSolicitudTipoCuerda" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuerda (si la trae el cliente):</label>
+                    <input type="text" id="editSolicitudTipoCuerda" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="editSolicitudTension" class="block text-sm font-medium text-gray-700 mb-1">Tensión (lbs/kg) <span class="text-red-500">*</span>:</label>
-                        <input type="text" id="editSolicitudTension" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editTension" class="error-message"></div>
-                    </div>
-                    <div>
-                        <label for="editSolicitudFechaSolicitud" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Solicitud <span class="text-red-500">*</span>:</label>
-                        <input type="date" id="editSolicitudFechaSolicitud" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <label for="editSolicitudFechaSolicitud" class="block text-sm font-medium text-gray-700 mb-1">Fecha Solicitud:</label>
+                        <input type="date" id="editSolicitudFechaSolicitud" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
                         <div id="error-editFechaSolicitud" class="error-message"></div>
                     </div>
                     <div>
-                        <label for="editSolicitudFechaEntregaEstimada" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Entrega Estimada:</label>
+                        <label for="editSolicitudFechaEntregaEstimada" class="block text-sm font-medium text-gray-700 mb-1">Fecha Entrega Est.:</label>
                         <input type="date" id="editSolicitudFechaEntregaEstimada" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
                     </div>
+                </div>
+                
+                <div class="flex items-center mt-1 mb-1">
+                    <input type="checkbox" id="editSolicitudCuerdaIncluida" name="cuerdaIncluida" class="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="editSolicitudCuerdaIncluida" class="ml-2 block text-sm font-medium text-gray-700">Cuerda Incluida (suministrada por nosotros)</label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="editSolicitudFechaEntregaReal" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Entrega Real:</label>
-                        <input type="date" id="editSolicitudFechaEntregaReal" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <label for="editSolicitudPrecio" class="block text-sm font-medium text-gray-700 mb-1">Precio Sugerido/Final (€):</label>
+                        <input type="number" id="editSolicitudPrecio" step="0.01" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
                     </div>
                     <div>
-                        <label for="editSolicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado de Entrega <span class="text-red-500">*</span>:</label>
-                        <select id="editSolicitudEstadoEntrega" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                        <label for="editSolicitudEstadoPago" class="block text-sm font-medium text-gray-700 mb-1">Estado Pago:</label>
+                        <select id="editSolicitudEstadoPago" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Pagado">Pagado</option>
+                        </select>
+                        <div id="error-editEstadoPago" class="error-message"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editSolicitudFechaPago" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago:</label>
+                        <input type="date" id="editSolicitudFechaPago" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="editSolicitudEstadoEntrega" class="block text-sm font-medium text-gray-700 mb-1">Estado Entrega:</label>
+                        <select id="editSolicitudEstadoEntrega" required class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
                             <option value="Pendiente">Pendiente de Iniciar</option>
                             <option value="En Proceso">En Proceso</option>
                             <option value="Listo para Recoger">Listo para Recoger</option>
@@ -361,7 +604,7 @@
                         <div id="error-editEstadoEntrega" class="error-message"></div>
                     </div>
                 </div>
-
+                
                 <div>
                     <label for="editSolicitudNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
                     <textarea id="editSolicitudNotas" rows="2" class="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea>
@@ -373,78 +616,8 @@
                 </div>
             </form>
         </div>
-    </div>
-
-    <!-- Edit Jugador Modal -->
-    <div id="editJugadorModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-4">
-            <h3 class="text-2xl font-bold mb-5 text-gray-800">Editar Jugador</h3>
-            <form id="editJugadorForm" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="editJugadorNombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre <span class="text-red-500">*</span>:</label>
-                        <input type="text" id="editJugadorNombre" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editJugadorNombre" class="error-message"></div>
-                    </div>
-                    <div>
-                        <label for="editJugadorEmail" class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span>:</label>
-                        <input type="email" id="editJugadorEmail" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                        <div id="error-editJugadorEmail" class="error-message"></div>
-                    </div>
-                    <div>
-                        <label for="editJugadorTelefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                        <input type="tel" id="editJugadorTelefono" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="editJugadorNivel" class="block text-sm font-medium text-gray-700 mb-1">Nivel:</label>
-                        <input type="text" id="editJugadorNivel" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                    </div>
-                    <div>
-                        <label for="editJugadorManoDominante" class="block text-sm font-medium text-gray-700 mb-1">Mano Dominante:</label>
-                        <select id="editJugadorManoDominante" class="w-full p-3 border border-gray-300 rounded-md shadow-sm">
-                            <option value="">Seleccionar</option>
-                            <option value="Diestro">Diestro</option>
-                            <option value="Zurdo">Zurdo</option>
-                        </select>
-                    </div>
-                </div>
-                <div>
-                    <label for="editJugadorNotas" class="block text-sm font-medium text-gray-700 mb-1">Notas Adicionales:</label>
-                    <textarea id="editJugadorNotas" rows="2" class="w-full p-3 border border-gray-300 rounded-md shadow-sm"></textarea>
-                </div>
-                <div class="flex justify-end space-x-3 pt-3">
-                    <button type="button" id="cancelEditJugador" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Guardar Cambios</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Confirm Delete Modal -->
-    <div id="confirmarEliminarModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm mx-4 text-center">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Eliminación</h3>
-            <p id="confirmarMensaje" class="mb-6 text-gray-700">¿Estás seguro de que deseas eliminar este elemento?</p>
-            <div class="flex justify-center space-x-4">
-                <button id="cancelarEliminar" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="confirmarEliminar" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg">Eliminar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirm Import Modal -->
-    <div id="confirmImportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-sm mx-4 text-center">
-            <h3 class="text-xl font-bold mb-4 text-gray-800">Confirmar Importación</h3>
-            <p id="importMessage" class="mb-6 text-gray-700">¿Estás seguro de que deseas importar estos datos?</p>
-            <div class="flex justify-center space-x-4">
-                <button id="cancelImportBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-4 rounded-lg">Cancelar</button>
-                <button id="confirmImportBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">Importar</button>
-            </div>
-        </div>
-    </div>
-
+    </div>  
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="module" src="app.js"></script>
 </body>
-</html>
+</html>  
