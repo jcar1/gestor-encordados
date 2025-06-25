@@ -54,7 +54,7 @@ try {
 
 // Global variables for Firestore (MUST BE USED)
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-const firebaseConfigRuntime = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+// const firebaseConfigRuntime = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}'); // No se usa directamente aquí, comentar o eliminar si no se utiliza.
 
 // Utilidad para mostrar mensajes al usuario
 function showMessage(message, type = 'info') {
@@ -108,6 +108,10 @@ function showMessage(message, type = 'info') {
 
 // Observador de estado de autenticación
 onAuthStateChanged(auth, async (user) => {
+    const loginContainer = document.getElementById('loginContainer');
+    const appContent = document.getElementById('appContent');
+    const logoutBtn = document.getElementById('logoutBtn');
+
     if (user) {
         currentUserId = user.uid; // Guarda el UID del usuario
         // User is signed in, check their role
@@ -129,8 +133,8 @@ onAuthStateChanged(auth, async (user) => {
         }
         console.log("Usuario autenticado. Rol:", userRole);
 
-        document.getElementById('loginContainer').style.display = 'none';
-        document.getElementById('appContent').style.display = 'block';
+        if (loginContainer) loginContainer.style.display = 'none';
+        if (appContent) appContent.style.display = 'block';
 
         // Actualizar la interfaz de usuario basada en el rol y el estado de autenticación
         updateUIForAuthState();
@@ -143,8 +147,8 @@ onAuthStateChanged(auth, async (user) => {
         // User is signed out
         userRole = null;
         currentUserId = null;
-        document.getElementById('loginContainer').style.display = 'flex';
-        document.getElementById('appContent').style.display = 'none';
+        if (loginContainer) loginContainer.style.display = 'flex';
+        if (appContent) appContent.style.display = 'none';
         updateUIForAuthState(); // Ocultar elementos de administrador
     }
 });
@@ -177,42 +181,48 @@ function updateUIForAuthState() {
 // **********************************************
 
 // Función de inicio de sesión
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const errorMessageElement = document.getElementById('error-login');
+const loginForm = document.getElementById('loginForm');
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const errorMessageElement = document.getElementById('error-login');
 
-    try {
-        await setPersistence(auth, browserLocalPersistence);
-        await signInWithEmailAndPassword(auth, email, password);
-        showMessage('Inicio de sesión exitoso.', 'success');
-        errorMessageElement.textContent = '';
-    } catch (error) {
-        console.error("Error de inicio de sesión:", error);
-        let message = 'Error de inicio de sesión. Credenciales inválidas.';
-        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-            message = 'Correo o contraseña incorrectos.';
-        } else if (error.code === 'auth/invalid-email') {
-            message = 'El formato del correo electrónico es inválido.';
-        } else if (error.code === 'auth/too-many-requests') {
-            message = 'Demasiados intentos de inicio de sesión. Inténtalo de nuevo más tarde.';
+        try {
+            await setPersistence(auth, browserLocalPersistence);
+            await signInWithEmailAndPassword(auth, email, password);
+            showMessage('Inicio de sesión exitoso.', 'success');
+            if (errorMessageElement) errorMessageElement.textContent = '';
+        } catch (error) {
+            console.error("Error de inicio de sesión:", error);
+            let message = 'Error de inicio de sesión. Credenciales inválidas.';
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                message = 'Correo o contraseña incorrectos.';
+            } else if (error.code === 'auth/invalid-email') {
+                message = 'El formato del correo electrónico es inválido.';
+            } else if (error.code === 'auth/too-many-requests') {
+                message = 'Demasiados intentos de inicio de sesión. Inténtalo de nuevo más tarde.';
+            }
+            if (errorMessageElement) errorMessageElement.textContent = message;
+            showMessage(message, 'error');
         }
-        errorMessageElement.textContent = message;
-        showMessage(message, 'error');
-    }
-});
+    });
+}
 
 // Función de cierre de sesión
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-    try {
-        await signOut(auth);
-        showMessage('Sesión cerrada correctamente.', 'info');
-    } catch (error) {
-        console.error("Error al cerrar sesión:", error);
-        showMessage(`Error al cerrar sesión: ${error.message}`, 'error');
-    }
-});
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        try {
+            await signOut(auth);
+            showMessage('Sesión cerrada correctamente.', 'info');
+        } catch (error) {
+            console.error("Error al cerrar sesión:", error);
+            showMessage(`Error al cerrar sesión: ${error.message}`, 'error');
+        }
+    });
+}
 
 // **********************************************
 // Funciones de Administración de Roles (NUEVO)
@@ -540,98 +550,108 @@ function renderizarSolicitudes(solicitudes) {
 }
 
 // Añadir una nueva solicitud
-document.getElementById('solicitudForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+const solicitudForm = document.getElementById('solicitudForm');
+if (solicitudForm) {
+    solicitudForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    // Validar permisos
-    if (userRole !== 'admin' && userRole !== 'usuario') {
-        showMessage('No tienes permiso para agregar solicitudes.', 'error');
-        return;
-    }
-    if (!currentUserId) {
-        showMessage('Debes iniciar sesión para agregar solicitudes.', 'error');
-        return;
-    }
+        // Validar permisos
+        if (userRole !== 'admin' && userRole !== 'usuario') {
+            showMessage('No tienes permiso para agregar solicitudes.', 'error');
+            return;
+        }
+        if (!currentUserId) {
+            showMessage('Debes iniciar sesión para agregar solicitudes.', 'error');
+            return;
+        }
 
-    const newSolicitud = {
-        nombreJugador: document.getElementById('solicitudNombreJugador').value,
-        modeloRaqueta: document.getElementById('solicitudModeloRaqueta').value,
-        tipoCuerda: document.getElementById('solicitudTipoCuerda').value,
-        tensión: document.getElementById('solicitudTension').value,
-        fechaSolicitud: document.getElementById('solicitudFechaSolicitud').value,
-        fechaEntregaEstimada: document.getElementById('solicitudFechaEntregaEstimada').value,
-        estadoEntrega: document.getElementById('solicitudEstadoEntrega').value,
-        notas: document.getElementById('solicitudNotas').value,
-        fechaEntregaReal: '', // Se llena cuando el estado cambia a "Entregado"
-        createdAt: new Date().toISOString()
-    };
+        const newSolicitud = {
+            nombreJugador: document.getElementById('solicitudNombreJugador').value,
+            modeloRaqueta: document.getElementById('solicitudModeloRaqueta').value,
+            tipoCuerda: document.getElementById('solicitudTipoCuerda').value,
+            tensión: document.getElementById('solicitudTension').value,
+            fechaSolicitud: document.getElementById('solicitudFechaSolicitud').value,
+            fechaEntregaEstimada: document.getElementById('solicitudFechaEntregaEstimada').value,
+            estadoEntrega: document.getElementById('solicitudEstadoEntrega').value,
+            notas: document.getElementById('solicitudNotas').value,
+            fechaEntregaReal: '', // Se llena cuando el estado cambia a "Entregado"
+            createdAt: new Date().toISOString()
+        };
 
-    // Validaciones
-    let isValid = true;
-    if (!newSolicitud.nombreJugador) {
-        document.getElementById('error-solicitudNombreJugador').textContent = 'El nombre del jugador es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudNombreJugador').textContent = '';
-    }
-    if (!newSolicitud.modeloRaqueta) {
-        document.getElementById('error-solicitudModeloRaqueta').textContent = 'El modelo de la raqueta es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudModeloRaqueta').textContent = '';
-    }
-    if (!newSolicitud.tipoCuerda) {
-        document.getElementById('error-solicitudTipoCuerda').textContent = 'El tipo de cuerda es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudTipoCuerda').textContent = '';
-    }
-    if (!newSolicitud.tensión) {
-        document.getElementById('error-solicitudTension').textContent = 'La tensión es obligatoria.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudTension').textContent = '';
-    }
-    if (!newSolicitud.fechaSolicitud) {
-        document.getElementById('error-solicitudFechaSolicitud').textContent = 'La fecha de solicitud es obligatoria.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudFechaSolicitud').textContent = '';
-    }
-    if (!newSolicitud.estadoEntrega) {
-        document.getElementById('error-solicitudEstadoEntrega').textContent = 'El estado de entrega es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-solicitudEstadoEntrega').textContent = '';
-    }
+        // Validaciones
+        let isValid = true;
+        const errorSolicitudNombreJugador = document.getElementById('error-solicitudNombreJugador');
+        const errorSolicitudModeloRaqueta = document.getElementById('error-solicitudModeloRaqueta');
+        const errorSolicitudTipoCuerda = document.getElementById('error-solicitudTipoCuerda');
+        const errorSolicitudTension = document.getElementById('error-solicitudTension');
+        const errorSolicitudFechaSolicitud = document.getElementById('error-solicitudFechaSolicitud');
+        const errorSolicitudEstadoEntrega = document.getElementById('error-solicitudEstadoEntrega');
 
-    if (!isValid) {
-        showMessage('Por favor, completa todos los campos obligatorios.', 'error');
-        return;
-    }
-
-    try {
-        const publicCheckbox = document.getElementById('solicitudPublico');
-        const isPublic = publicCheckbox && publicCheckbox.checked;
-
-        if (isPublic) {
-            await addDoc(getPublicSolicitudesCollectionRef(), newSolicitud);
-            showMessage('Nueva solicitud pública añadida.', 'success');
+        if (!newSolicitud.nombreJugador) {
+            if (errorSolicitudNombreJugador) errorSolicitudNombreJugador.textContent = 'El nombre del jugador es obligatorio.';
+            isValid = false;
         } else {
-            await addDoc(getSolicitudesCollectionRef(currentUserId), newSolicitud);
-            showMessage('Nueva solicitud privada añadida.', 'success');
+            if (errorSolicitudNombreJugador) errorSolicitudNombreJugador.textContent = '';
+        }
+        if (!newSolicitud.modeloRaqueta) {
+            if (errorSolicitudModeloRaqueta) errorSolicitudModeloRaqueta.textContent = 'El modelo de la raqueta es obligatorio.';
+            isValid = false;
+        } else {
+            if (errorSolicitudModeloRaqueta) errorSolicitudModeloRaqueta.textContent = '';
+        }
+        if (!newSolicitud.tipoCuerda) {
+            if (errorSolicitudTipoCuerda) errorSolicitudTipoCuerda.textContent = 'El tipo de cuerda es obligatorio.';
+            isValid = false;
+        } else {
+            if (errorSolicitudTipoCuerda) errorSolicitudTipoCuerda.textContent = '';
+        }
+        if (!newSolicitud.tensión) {
+            if (errorSolicitudTension) errorSolicitudTension.textContent = 'La tensión es obligatoria.';
+            isValid = false;
+        } else {
+            if (errorSolicitudTension) errorSolicitudTension.textContent = '';
+        }
+        if (!newSolicitud.fechaSolicitud) {
+            if (errorSolicitudFechaSolicitud) errorSolicitudFechaSolicitud.textContent = 'La fecha de solicitud es obligatoria.';
+            isValid = false;
+        } else {
+            if (errorSolicitudFechaSolicitud) errorSolicitudFechaSolicitud.textContent = '';
+        }
+        if (!newSolicitud.estadoEntrega) {
+            if (errorSolicitudEstadoEntrega) errorSolicitudEstadoEntrega.textContent = 'El estado de entrega es obligatorio.';
+            isValid = false;
+        } else {
+            if (errorSolicitudEstadoEntrega) errorSolicitudEstadoEntrega.textContent = '';
         }
 
-        document.getElementById('solicitudForm').reset();
-        if (publicCheckbox) {
-            publicCheckbox.checked = false; // Reset checkbox
+        if (!isValid) {
+            showMessage('Por favor, completa todos los campos obligatorios.', 'error');
+            return;
         }
-        cargarSolicitudes();
-    } catch (error) {
-        console.error("Error al añadir solicitud:", error);
-        showMessage(`Error al añadir solicitud: ${error.message}`, 'error');
-    }
-});
+
+        try {
+            const publicCheckbox = document.getElementById('solicitudPublico');
+            const isPublic = publicCheckbox && publicCheckbox.checked;
+
+            if (isPublic) {
+                await addDoc(getPublicSolicitudesCollectionRef(), newSolicitud);
+                showMessage('Nueva solicitud pública añadida.', 'success');
+            } else {
+                await addDoc(getSolicitudesCollectionRef(currentUserId), newSolicitud);
+                showMessage('Nueva solicitud privada añadida.', 'success');
+            }
+
+            solicitudForm.reset();
+            if (publicCheckbox) {
+                publicCheckbox.checked = false; // Reset checkbox
+            }
+            cargarSolicitudes();
+        } catch (error) {
+            console.error("Error al añadir solicitud:", error);
+            showMessage(`Error al añadir solicitud: ${error.message}`, 'error');
+        }
+    });
+}
 
 
 // Mostrar/ocultar el modal de edición de solicitudes
@@ -907,71 +927,77 @@ function renderizarJugadores(jugadores) {
 }
 
 // Añadir nuevo jugador
-document.getElementById('jugadorForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+const jugadorForm = document.getElementById('jugadorForm');
+if (jugadorForm) {
+    jugadorForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    // Validar permisos
-    if (userRole !== 'admin' && userRole !== 'usuario') {
-        showMessage('No tienes permiso para agregar jugadores.', 'error');
-        return;
-    }
-    if (!currentUserId) {
-        showMessage('Debes iniciar sesión para agregar jugadores.', 'error');
-        return;
-    }
+        // Validar permisos
+        if (userRole !== 'admin' && userRole !== 'usuario') {
+            showMessage('No tienes permiso para agregar jugadores.', 'error');
+            return;
+        }
+        if (!currentUserId) {
+            showMessage('Debes iniciar sesión para agregar jugadores.', 'error');
+            return;
+        }
 
-    const newJugador = {
-        nombre: document.getElementById('jugadorNombre').value,
-        email: document.getElementById('jugadorEmail').value,
-        telefono: document.getElementById('jugadorTelefono').value,
-        nivel: document.getElementById('jugadorNivel').value,
-        manoDominante: document.getElementById('jugadorManoDominante').value,
-        notas: document.getElementById('jugadorNotas').value,
-        createdAt: new Date().toISOString()
-    };
+        const newJugador = {
+            nombre: document.getElementById('jugadorNombre').value,
+            email: document.getElementById('jugadorEmail').value,
+            telefono: document.getElementById('jugadorTelefono').value,
+            nivel: document.getElementById('jugadorNivel').value,
+            manoDominante: document.getElementById('jugadorManoDominante').value,
+            notas: document.getElementById('jugadorNotas').value,
+            createdAt: new Date().toISOString()
+        };
 
-    // Validaciones
-    let isValid = true;
-    if (!newJugador.nombre) {
-        document.getElementById('error-jugadorNombre').textContent = 'El nombre es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-jugadorNombre').textContent = '';
-    }
-    if (!newJugador.email) {
-        document.getElementById('error-jugadorEmail').textContent = 'El email es obligatorio.';
-        isValid = false;
-    } else {
-        document.getElementById('error-jugadorEmail').textContent = '';
-    }
+        // Validaciones
+        let isValid = true;
+        const errorJugadorNombre = document.getElementById('error-jugadorNombre');
+        const errorJugadorEmail = document.getElementById('error-jugadorEmail');
 
-    if (!isValid) {
-        showMessage('Por favor, completa todos los campos obligatorios.', 'error');
-        return;
-    }
-
-    try {
-        const publicCheckbox = document.getElementById('jugadorPublico');
-        const isPublic = publicCheckbox && publicCheckbox.checked;
-
-        if (isPublic) {
-            await addDoc(getPublicJugadoresCollectionRef(), newJugador);
-            showMessage('Nuevo jugador público añadido.', 'success');
+        if (!newJugador.nombre) {
+            if (errorJugadorNombre) errorJugadorNombre.textContent = 'El nombre es obligatorio.';
+            isValid = false;
         } else {
-            await addDoc(getJugadoresCollectionRef(currentUserId), newJugador);
-            showMessage('Nuevo jugador privado añadido.', 'success');
+            if (errorJugadorNombre) errorJugadorNombre.textContent = '';
+        }
+        if (!newJugador.email) {
+            if (errorJugadorEmail) errorJugadorEmail.textContent = 'El email es obligatorio.';
+            isValid = false;
+        } else {
+            if (errorJugadorEmail) errorJugadorEmail.textContent = '';
         }
 
-        document.getElementById('jugadorForm').reset();
-        if (publicCheckbox) {
-            publicCheckbox.checked = false; // Reset checkbox
+        if (!isValid) {
+            showMessage('Por favor, completa todos los campos obligatorios.', 'error');
+            return;
         }
-        cargarJugadores();
-    } catch (error) {
-        console.error("Error al añadir jugador:", error);
-        showMessage(`Error al añadir jugador: ${error.message}`, 'error');
-    }
-});
+
+        try {
+            const publicCheckbox = document.getElementById('jugadorPublico');
+            const isPublic = publicCheckbox && publicCheckbox.checked;
+
+            if (isPublic) {
+                await addDoc(getPublicJugadoresCollectionRef(), newJugador);
+                showMessage('Nuevo jugador público añadido.', 'success');
+            } else {
+                await addDoc(getJugadoresCollectionRef(currentUserId), newJugador);
+                showMessage('Nuevo jugador privado añadido.', 'success');
+            }
+
+            jugadorForm.reset();
+            if (publicCheckbox) {
+                publicCheckbox.checked = false; // Reset checkbox
+            }
+            cargarJugadores();
+        } catch (error) {
+            console.error("Error al añadir jugador:", error);
+            showMessage(`Error al añadir jugador: ${error.message}`, 'error');
+        }
+    });
+}
 
 
 // Mostrar/ocultar el modal de edición de jugadores
@@ -1386,19 +1412,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         verJugadoresTab.prepend(importJugadoresContainer); // Añadir al inicio del contenido de la pestaña
 
-        document.getElementById('btnImportJugadoresCSV').addEventListener('click', () => {
-            if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.csv';
-            fileInput.onchange = (e) => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
-                reader.readAsText(file);
-            };
-            fileInput.click();
-        });
+        const btnImportJugadoresCSV = document.getElementById('btnImportJugadoresCSV');
+        if (btnImportJugadoresCSV) {
+            btnImportJugadoresCSV.addEventListener('click', () => {
+                if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.csv';
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
+                    reader.readAsText(file);
+                };
+                fileInput.click();
+            });
+        }
     }
 
     // Contenedor para botones de importación de Solicitudes
@@ -1414,19 +1443,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         verSolicitudesTab.prepend(importSolicitudesContainer); // Añadir al inicio del contenido de la pestaña
 
-        document.getElementById('btnImportSolicitudesCSV').addEventListener('click', () => {
-            if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = '.csv';
-            fileInput.onchange = (e) => {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
-                reader.readAsText(file);
-            };
-            fileInput.click();
-        });
+        const btnImportSolicitudesCSV = document.getElementById('btnImportSolicitudesCSV');
+        if (btnImportSolicitudesCSV) {
+            btnImportSolicitudesCSV.addEventListener('click', () => {
+                if (userRole !== 'admin') { showMessage('Solo un administrador puede importar datos.', 'error'); return; }
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.csv';
+                fileInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
+                    reader.readAsText(file);
+                };
+                fileInput.click();
+            });
+        }
     }
 
     // Cargar datos inicialmente (después de que el DOM esté listo y el usuario autenticado)
