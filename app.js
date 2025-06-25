@@ -483,7 +483,7 @@ async function cargarSolicitudes() {
         }
         console.log("Solicitudes cargadas:", solicitudes.length);
         renderizarSolicitudes(solicitudes);
-        actualizarEstadisticasSolicitudes(solicitudes);
+        actualizarEstadisticasSolicitudes(solicitudes); // Llamar siempre, incluso si no hay solicitudes para resetear el gráfico
         const exportarSolicitudesBtn = document.getElementById('exportarSolicitudesCSV');
         if (exportarSolicitudesBtn) {
             exportarSolicitudesBtn.style.display = solicitudes.length > 0 ? 'block' : 'none'; // Mostrar/ocultar botón
@@ -491,7 +491,7 @@ async function cargarSolicitudes() {
     } catch (error) {
         console.error("Error al cargar solicitudes:", error);
         solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-red-500">Error al cargar solicitudes.</td></tr>';
-        showMessage('Error al cargar solicitudes.', 'error');
+        showMessage(`Error al cargar solicitudes: ${error.message}`, 'error'); // Mostrar error más específico
     }
 }
 
@@ -891,7 +891,7 @@ async function cargarJugadores() {
     } catch (error) {
         console.error("Error al cargar jugadores:", error);
         jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-red-500">Error al cargar jugadores.</td></tr>';
-        showMessage('Error al cargar jugadores.', 'error');
+        showMessage(`Error al cargar jugadores: ${error.message}`, 'error'); // Mostrar error más específico
     }
 }
 
@@ -1520,6 +1520,7 @@ document.addEventListener('DOMContentLoaded', () => {
 let solicitudesChart;
 
 function actualizarEstadisticasSolicitudes(solicitudes) {
+    console.log("actualizarEstadisticasSolicitudes: Inicio.");
     const estadoCounts = {
         'Pendiente': 0,
         'En Proceso': 0,
@@ -1527,12 +1528,16 @@ function actualizarEstadisticasSolicitudes(solicitudes) {
         'Entregado': 0,
         'Cancelado': 0
     };
+    console.log("actualizarEstadisticasSolicitudes: estadoCounts inicializado.");
+
 
     solicitudes.forEach(solicitud => {
         if (solicitud.estadoEntrega && estadoCounts.hasOwnProperty(solicitud.estadoEntrega)) {
             estadoCounts[solicitud.estadoEntrega]++;
         }
     });
+    console.log("actualizarEstadisticasSolicitudes: estadoCounts poblado.", estadoCounts);
+
 
     const chartData = {
         labels: Object.keys(estadoCounts),
@@ -1556,15 +1561,94 @@ function actualizarEstadisticasSolicitudes(solicitudes) {
             borderWidth: 1
         }]
     };
+    console.log("actualizarEstadisticasSolicitudes: chartData inicializado.");
+
+    let config; // Usamos 'let' para mayor flexibilidad
+    try {
+        config = {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { if (Number.isInteger(value)) return value; },
+                            color: '#4A5568' // gray-700
+                        },
+                        grid: {
+                            color: '#E2E8F0' // gray-200
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#4A5568' // gray-700
+                        },
+                        grid: {
+                            color: '#E2E8F0' // gray-200
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#4A5568' // gray-700
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Estado de Solicitudes de Encordado',
+                        color: '#2D3748', // gray-800
+                        font: {
+                            size: 16
+                        }
+                    }
+                }
+            }
+        };
+        console.log("actualizarEstadisticasSolicitudes: 'config' objeto creado con éxito.");
+    } catch (e) {
+        console.error("actualizarEstadisticasSolicitudes: Error al crear el objeto 'config':", e);
+        showMessage("Error interno al preparar el gráfico.", 'error');
+        return; // Salir si la creación de config falla
+    }
+
 
     const ctx = document.getElementById('solicitudesChart');
     if (ctx) {
         if (solicitudesChart) {
             solicitudesChart.destroy(); // Destruir instancia anterior si existe
+            console.log("actualizarEstadisticasSolicitudes: Destruido gráfico anterior.");
         }
-        solicitudesChart = new Chart(ctx, config);
-        console.log("Gráfico de solicitudes actualizado.");
+        
+        // Verificar que Chart.js esté disponible globalmente
+        if (typeof Chart === 'undefined') {
+            console.error("actualizarEstadisticasSolicitudes: La librería Chart.js (objeto global 'Chart') no está definida.");
+            showMessage("Error: La librería de gráficos no se ha cargado correctamente.", 'error');
+            return; // Salir si Chart no está disponible
+        }
+
+        // Última comprobación de 'config' antes de usarla
+        if (typeof config === 'undefined' || config === null) {
+            console.error("actualizarEstadisticasSolicitudes: La variable 'config' es undefined/null justo antes de usarla.");
+            showMessage("Error: Configuración de gráfico incompleta o no disponible.", 'error');
+            return;
+        }
+
+        try {
+            solicitudesChart = new Chart(ctx, config);
+            console.log("actualizarEstadisticasSolicitudes: Gráfico de solicitudes actualizado.");
+        } catch (chartCreationError) {
+            console.error("actualizarEstadisticasSolicitudes: Error al crear la instancia de Chart.js:", chartCreationError);
+            showMessage(`Error al generar el gráfico de solicitudes: ${chartCreationError.message}.`, 'error');
+        }
+    } else {
+        console.warn("actualizarEstadisticasSolicitudes: Elemento 'solicitudesChart' (canvas) no encontrado en el DOM.");
+        showMessage("Advertencia: No se encontró el elemento para el gráfico de solicitudes.", 'warning');
     }
+    console.log("actualizarEstadisticasSolicitudes: Fin.");
 }
 
 // Asegurarse de que el gráfico se actualice al cambiar de pestaña a "Resumen"
