@@ -502,14 +502,16 @@ function renderizarSolicitudes(solicitudes) {
     const solicitudesTableBody = document.getElementById('solicitudesTableBody');
     if (!solicitudesTableBody) return;
 
+    console.log("renderizarSolicitudes: Limpiando tabla y preparando para renderizar", solicitudes.length, "solicitudes.");
     solicitudesTableBody.innerHTML = ''; // Limpiar tabla
 
     if (solicitudes.length === 0) {
         solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-500">No hay solicitudes registradas.</td></tr>';
+        console.log("renderizarSolicitudes: No hay solicitudes para renderizar.");
         return;
     }
 
-    solicitudes.forEach(solicitud => {
+    solicitudes.forEach((solicitud, index) => {
         const row = document.createElement('tr');
         row.className = 'border-b hover:bg-gray-50';
         let estadoColorClass = '';
@@ -549,7 +551,9 @@ function renderizarSolicitudes(solicitudes) {
                 </button>
             </td>
         `;
+        console.log(`renderizarSolicitudes: Generando HTML para solicitud ${index}:`, row.innerHTML);
         solicitudesTableBody.appendChild(row);
+        console.log(`renderizarSolicitudes: Solicitud ${index} añadida al DOM. Total de hijos:`, solicitudesTableBody.children.length);
     });
 
     // Añadir event listeners para editar y eliminar solicitudes
@@ -908,14 +912,16 @@ function renderizarJugadores(jugadores) {
     const jugadoresTableBody = document.getElementById('jugadoresTableBody');
     if (!jugadoresTableBody) return;
 
+    console.log("renderizarJugadores: Limpiando tabla y preparando para renderizar", jugadores.length, "jugadores.");
     jugadoresTableBody.innerHTML = ''; // Limpiar tabla
 
     if (jugadores.length === 0) {
         jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">No hay jugadores registrados.</td></tr>';
+        console.log("renderizarJugadores: No hay jugadores para renderizar.");
         return;
     }
 
-    jugadores.forEach(jugador => {
+    jugadores.forEach((jugador, index) => {
         const row = document.createElement('tr');
         row.className = 'border-b hover:bg-gray-50';
 
@@ -940,7 +946,9 @@ function renderizarJugadores(jugadores) {
                 </button>
             </td>
         `;
+        console.log(`renderizarJugadores: Generando HTML para jugador ${index}:`, row.innerHTML);
         jugadoresTableBody.appendChild(row);
+        console.log(`renderizarJugadores: Jugador ${index} añadido al DOM. Total de hijos:`, jugadoresTableBody.children.length);
     });
 
     // Añadir event listeners para editar y eliminar jugadores
