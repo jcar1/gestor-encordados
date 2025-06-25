@@ -1563,57 +1563,54 @@ function actualizarEstadisticasSolicitudes(solicitudes) {
     };
     console.log("actualizarEstadisticasSolicitudes: chartData inicializado.");
 
-    let config; // Usamos 'let' para mayor flexibilidad
-    try {
-        config = {
-            type: 'bar',
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) { if (Number.isInteger(value)) return value; },
-                            color: '#4A5568' // gray-700
-                        },
-                        grid: {
-                            color: '#E2E8F0' // gray-200
-                        }
+    // Declare config with its full value directly.
+    // This removes the `let config; try { config = ... }` pattern
+    // which could lead to `config` being undefined if the try block was bypassed somehow
+    // or if a hidden error during config object creation (very rare) caused an early return.
+    const config = {
+        type: 'bar',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { if (Number.isInteger(value)) return value; },
+                        color: '#4A5568' // gray-700
                     },
-                    x: {
-                        ticks: {
-                            color: '#4A5568' // gray-700
-                        },
-                        grid: {
-                            color: '#E2E8F0' // gray-200
-                        }
+                    grid: {
+                        color: '#E2E8F0' // gray-200
                     }
                 },
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: '#4A5568' // gray-700
-                        }
+                x: {
+                    ticks: {
+                        color: '#4A5568' // gray-700
                     },
-                    title: {
-                        display: true,
-                        text: 'Estado de Solicitudes de Encordado',
-                        color: '#2D3748', // gray-800
-                        font: {
-                            size: 16
-                        }
+                    grid: {
+                        color: '#E2E8F0' // gray-200
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#4A5568' // gray-700
+                    }
+                },
+                title: {
+                    display: true,
+                    text: 'Estado de Solicitudes de Encordado',
+                    color: '#2D3748', // gray-800
+                    font: {
+                        size: 16
                     }
                 }
             }
-        };
-        console.log("actualizarEstadisticasSolicitudes: 'config' objeto creado con éxito.");
-    } catch (e) {
-        console.error("actualizarEstadisticasSolicitudes: Error al crear el objeto 'config':", e);
-        showMessage("Error interno al preparar el gráfico.", 'error');
-        return; // Salir si la creación de config falla
-    }
+        }
+    };
+    console.log("actualizarEstadisticasSolicitudes: 'config' objeto creado con éxito.");
 
 
     const ctx = document.getElementById('solicitudesChart');
@@ -1628,13 +1625,6 @@ function actualizarEstadisticasSolicitudes(solicitudes) {
             console.error("actualizarEstadisticasSolicitudes: La librería Chart.js (objeto global 'Chart') no está definida.");
             showMessage("Error: La librería de gráficos no se ha cargado correctamente.", 'error');
             return; // Salir si Chart no está disponible
-        }
-
-        // Última comprobación de 'config' antes de usarla
-        if (typeof config === 'undefined' || config === null) {
-            console.error("actualizarEstadisticasSolicitudes: La variable 'config' es undefined/null justo antes de usarla.");
-            showMessage("Error: Configuración de gráfico incompleta o no disponible.", 'error');
-            return;
         }
 
         try {
