@@ -117,11 +117,14 @@ onAuthStateChanged(auth, async (user) => {
         // User is signed in, check their role
         const userDocRef = doc(db, 'users', user.uid); // Asumiendo una colección 'users' donde el UID es el ID del documento
         try {
+            console.log("Intentando obtener documento de usuario para UID:", user.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
                 userRole = userDoc.data().role || 'usuario'; // Por defecto 'usuario' si el rol no se encuentra
+                console.log("Documento de usuario encontrado. Rol:", userRole);
             } else {
                 // Si el documento del usuario no existe, crearlo con un rol predeterminado
+                console.log("Documento de usuario no encontrado, creándolo con rol 'usuario'.");
                 await setDoc(userDocRef, { email: user.email, role: 'usuario', createdAt: new Date() });
                 userRole = 'usuario';
                 showMessage(`Bienvenido, ${user.email}. Tu rol es: ${userRole}`, 'info');
@@ -131,7 +134,7 @@ onAuthStateChanged(auth, async (user) => {
             userRole = 'usuario'; // Fallback a rol predeterminado en caso de error
             showMessage("Error al cargar el perfil de usuario. Inténtalo de nuevo.", 'error');
         }
-        console.log("Usuario autenticado. Rol:", userRole);
+        console.log("Usuario autenticado. Rol final determinado:", userRole);
 
         if (loginContainer) loginContainer.style.display = 'none';
         if (appContent) appContent.style.display = 'block';
@@ -150,6 +153,7 @@ onAuthStateChanged(auth, async (user) => {
         if (loginContainer) loginContainer.style.display = 'flex';
         if (appContent) appContent.style.display = 'none';
         updateUIForAuthState(); // Ocultar elementos de administrador
+        console.log("Usuario desautenticado.");
     }
 });
 
@@ -174,6 +178,7 @@ function updateUIForAuthState() {
     if (logoutBtn) {
         logoutBtn.style.display = auth.currentUser ? 'block' : 'none';
     }
+    console.log("UI actualizada para rol:", userRole);
 }
 
 // **********************************************
@@ -190,6 +195,7 @@ if (loginForm) {
         const errorMessageElement = document.getElementById('error-login');
 
         try {
+            console.log("Intentando iniciar sesión con:", email);
             await setPersistence(auth, browserLocalPersistence);
             await signInWithEmailAndPassword(auth, email, password);
             showMessage('Inicio de sesión exitoso.', 'success');
@@ -215,6 +221,7 @@ const logoutBtn = document.getElementById('logoutBtn');
 if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         try {
+            console.log("Cerrando sesión.");
             await signOut(auth);
             showMessage('Sesión cerrada correctamente.', 'info');
         } catch (error) {
@@ -241,6 +248,7 @@ async function asignarRolAdministrador(email) {
     }
 
     try {
+        console.log("Asignando rol de admin a:", email);
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where('email', '==', email));
         const querySnapshot = await getDocs(q);
@@ -262,6 +270,7 @@ async function asignarRolAdministrador(email) {
 // Función para cargar y mostrar la lista de usuarios
 async function cargarUsuarios() {
     if (userRole !== 'admin' || !db) { // Solo administradores y si db está inicializado
+        console.log("No autorizado para cargar usuarios o DB no inicializada. Rol:", userRole);
         return;
     }
 
@@ -271,6 +280,7 @@ async function cargarUsuarios() {
         return;
     }
     userListElement.innerHTML = '<li class="text-gray-500">Cargando usuarios...</li>'; // Mensaje de carga
+    console.log("Cargando usuarios para la gestión de roles...");
 
     try {
         const usersRef = collection(db, 'users');
@@ -279,12 +289,14 @@ async function cargarUsuarios() {
 
         if (querySnapshot.empty) {
             userListElement.innerHTML = '<li class="text-gray-500">No hay usuarios registrados.</li>';
+            console.log("No hay usuarios registrados en la colección 'users'.");
             return;
         }
 
         querySnapshot.forEach(doc => {
             const userData = doc.data();
             const userId = doc.id;
+            console.log("Usuario cargado:", userData.email, "Rol:", userData.role);
             const listItem = document.createElement('li');
             listItem.className = 'p-3 border border-gray-200 rounded-md shadow-sm flex justify-between items-center bg-gray-50';
             listItem.innerHTML = `
@@ -340,6 +352,7 @@ async function removerRolAdministrador(userId) {
     }
 
     try {
+        console.log("Removiendo rol de admin para UID:", userId);
         const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, { role: 'usuario' });
         showMessage('Rol de administrador removido con éxito.', 'success');
@@ -398,6 +411,7 @@ function showTab(tabId) {
     if (tabId === 'tab-administracion' && userRole === 'admin') {
         cargarUsuarios();
     }
+    console.log("Mostrando pestaña:", tabId);
 }
 
 // Asignar event listeners a los enlaces de pestañas
@@ -433,14 +447,17 @@ async function cargarSolicitudes() {
     solicitudesTableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-gray-500">Cargando solicitudes...</td></tr>';
 
     const solicitudes = [];
+    console.log("Cargando solicitudes. Rol actual:", userRole, "UID actual:", currentUserId);
 
     try {
         if (userRole === 'admin') {
+            console.log("Usuario es admin. Cargando solicitudes de todos los usuarios y públicas.");
             // Si es admin, cargar solicitudes de todos los usuarios
             const usersSnapshot = await getDocs(collection(db, 'users'));
             for (const userDoc of usersSnapshot.docs) {
                 const userUid = userDoc.id;
                 const userEmail = userDoc.data().email || 'Usuario Desconocido'; // Obtener email del creador
+                console.log(`Intentando cargar solicitudes para el usuario: ${userEmail} (UID: ${userUid})`);
 
                 const userSolicitudesQuery = query(getSolicitudesCollectionRef(userUid));
                 const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
@@ -449,12 +466,14 @@ async function cargarSolicitudes() {
                 });
             }
              // También cargar solicitudes de la colección pública para administradores
+             console.log("Intentando cargar solicitudes de la colección pública.");
              const publicSolicitudesSnapshot = await getDocs(getPublicSolicitudesCollectionRef());
              publicSolicitudesSnapshot.forEach(doc => {
                  solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
              });
 
         } else if (currentUserId) {
+            console.log("Usuario normal. Cargando solo sus solicitudes privadas.");
             // Si es usuario normal, cargar solo sus solicitudes privadas
             const userSolicitudesQuery = query(getSolicitudesCollectionRef(currentUserId));
             const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
@@ -462,7 +481,7 @@ async function cargarSolicitudes() {
                 solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: 'Tú', creadorUid: currentUserId });
             });
         }
-
+        console.log("Solicitudes cargadas:", solicitudes.length);
         renderizarSolicitudes(solicitudes);
         actualizarEstadisticasSolicitudes(solicitudes);
         const exportarSolicitudesBtn = document.getElementById('exportarSolicitudesCSV');
@@ -634,9 +653,11 @@ if (solicitudForm) {
             const isPublic = publicCheckbox && publicCheckbox.checked;
 
             if (isPublic) {
+                console.log("Añadiendo nueva solicitud pública.");
                 await addDoc(getPublicSolicitudesCollectionRef(), newSolicitud);
                 showMessage('Nueva solicitud pública añadida.', 'success');
             } else {
+                console.log("Añadiendo nueva solicitud privada para UID:", currentUserId);
                 await addDoc(getSolicitudesCollectionRef(currentUserId), newSolicitud);
                 showMessage('Nueva solicitud privada añadida.', 'success');
             }
@@ -677,6 +698,7 @@ async function mostrarEditarSolicitudModal(solicitudId, creadorUid) {
     }
     currentEditingSolicitud = solicitudId;
     currentEditingSolicitudCreatorUid = creadorUid;
+    console.log("Mostrando modal de edición para solicitud ID:", solicitudId, "Creador UID:", creadorUid);
 
     let solicitudDocRef;
     if (creadorUid === 'public') { // Es una solicitud pública
@@ -702,6 +724,7 @@ async function mostrarEditarSolicitudModal(solicitudId, creadorUid) {
             if (editSolicitudModal) editSolicitudModal.classList.remove('hidden');
         } else {
             showMessage("Solicitud no encontrada.", 'error');
+            console.warn("Solicitud no encontrada para ID:", solicitudId, "en ruta:", solicitudDocRef.path);
         }
     } catch (error) {
         console.error("Error al cargar solicitud para edición:", error);
@@ -794,7 +817,7 @@ if (editSolicitudForm) {
         } else {
             solicitudDocRef = doc(getSolicitudesCollectionRef(currentEditingSolicitudCreatorUid), currentEditingSolicitud);
         }
-
+        console.log("Actualizando solicitud en ruta:", solicitudDocRef.path);
         try {
             await updateDoc(solicitudDocRef, updatedSolicitud);
             showMessage('Solicitud actualizada con éxito.', 'success');
@@ -823,16 +846,19 @@ async function cargarJugadores() {
     if (!jugadoresTableBody) return;
 
     jugadoresTableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-gray-500">Cargando jugadores...</td></tr>';
+    console.log("Cargando jugadores. Rol actual:", userRole, "UID actual:", currentUserId);
 
     const jugadores = [];
 
     try {
         if (userRole === 'admin') {
+            console.log("Usuario es admin. Cargando jugadores de todos los usuarios y públicos.");
             // Si es admin, cargar jugadores de todos los usuarios
             const usersSnapshot = await getDocs(collection(db, 'users'));
             for (const userDoc of usersSnapshot.docs) {
                 const userUid = userDoc.id;
                 const userEmail = userDoc.data().email || 'Usuario Desconocido';
+                console.log(`Intentando cargar jugadores para el usuario: ${userEmail} (UID: ${userUid})`);
 
                 const userJugadoresQuery = query(getJugadoresCollectionRef(userUid));
                 const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
@@ -841,12 +867,14 @@ async function cargarJugadores() {
                 });
             }
              // También cargar jugadores de la colección pública para administradores
+            console.log("Intentando cargar jugadores de la colección pública.");
             const publicJugadoresSnapshot = await getDocs(getPublicJugadoresCollectionRef());
             publicJugadoresSnapshot.forEach(doc => {
                 jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
             });
 
         } else if (currentUserId) {
+            console.log("Usuario normal. Cargando solo sus jugadores privados.");
             // Si es usuario normal, cargar solo sus jugadores privados
             const userJugadoresQuery = query(getJugadoresCollectionRef(currentUserId));
             const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
@@ -854,7 +882,7 @@ async function cargarJugadores() {
                 jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: 'Tú', creadorUid: currentUserId });
             });
         }
-
+        console.log("Jugadores cargados:", jugadores.length);
         renderizarJugadores(jugadores);
         const exportarJugadoresBtn = document.getElementById('exportarJugadoresCSV');
         if (exportarJugadoresBtn) {
@@ -980,9 +1008,11 @@ if (jugadorForm) {
             const isPublic = publicCheckbox && publicCheckbox.checked;
 
             if (isPublic) {
+                console.log("Añadiendo nuevo jugador público.");
                 await addDoc(getPublicJugadoresCollectionRef(), newJugador);
                 showMessage('Nuevo jugador público añadido.', 'success');
             } else {
+                console.log("Añadiendo nuevo jugador privado para UID:", currentUserId);
                 await addDoc(getJugadoresCollectionRef(currentUserId), newJugador);
                 showMessage('Nuevo jugador privado añadido.', 'success');
             }
@@ -1023,6 +1053,7 @@ async function mostrarEditarJugadorModal(jugadorId, creadorUid) {
     }
     currentEditingJugador = jugadorId;
     currentEditingJugadorCreatorUid = creadorUid;
+    console.log("Mostrando modal de edición para jugador ID:", jugadorId, "Creador UID:", creadorUid);
 
     let jugadorDocRef;
     if (creadorUid === 'public') {
@@ -1045,6 +1076,7 @@ async function mostrarEditarJugadorModal(jugadorId, creadorUid) {
             if (editJugadorModal) editJugadorModal.classList.remove('hidden');
         } else {
             showMessage("Jugador no encontrado.", 'error');
+            console.warn("Jugador no encontrado para ID:", jugadorId, "en ruta:", jugadorDocRef.path);
         }
     } catch (error) {
         console.error("Error al cargar jugador para edición:", error);
@@ -1106,7 +1138,7 @@ if (editJugadorForm) {
         } else {
             jugadorDocRef = doc(getJugadoresCollectionRef(currentEditingJugadorCreatorUid), currentEditingJugador);
         }
-
+        console.log("Actualizando jugador en ruta:", jugadorDocRef.path);
         try {
             await updateDoc(jugadorDocRef, updatedJugador);
             showMessage('Jugador actualizado con éxito.', 'success');
@@ -1147,6 +1179,7 @@ if (confirmarEliminarBtn) {
             showMessage('No tienes permiso para eliminar este elemento.', 'error');
             return;
         }
+        console.log(`Eliminando ${tipo} con ID: ${id} del creador UID: ${creadorUid}`);
 
         try {
             let docRef;
@@ -1189,6 +1222,7 @@ function mostrarConfirmarEliminarModal(id, tipo, creadorUid) {
         confirmarMensaje.textContent = `¿Estás seguro de que deseas eliminar este ${tipo}?`;
     }
     if (confirmarEliminarModal) confirmarEliminarModal.classList.remove('hidden');
+    console.log("Mostrando modal de confirmación para eliminar. ID:", id, "Tipo:", tipo);
 }
 
 
@@ -1222,10 +1256,12 @@ if (exportarJugadoresBtn) {
             showMessage('Debes iniciar sesión para exportar jugadores.', 'error');
             return;
         }
+        console.log("Iniciando exportación de jugadores.");
 
         const jugadores = [];
         try {
             if (userRole === 'admin') {
+                console.log("Exportando todos los jugadores (admin).");
                 const usersSnapshot = await getDocs(collection(db, 'users'));
                 for (const userDoc of usersSnapshot.docs) {
                     const userUid = userDoc.id;
@@ -1235,6 +1271,7 @@ if (exportarJugadoresBtn) {
                 const publicJugadoresSnapshot = await getDocs(getPublicJugadoresCollectionRef());
                 publicJugadoresSnapshot.forEach(doc => jugadores.push(doc.data()));
             } else {
+                console.log("Exportando jugadores privados (usuario).");
                 const userJugadoresSnapshot = await getDocs(getJugadoresCollectionRef(currentUserId));
                 userJugadoresSnapshot.forEach(doc => jugadores.push(doc.data()));
             }
@@ -1252,6 +1289,7 @@ if (exportarJugadoresBtn) {
             link.download = 'jugadores.csv';
             link.click();
             showMessage('Jugadores exportados correctamente.', 'success');
+            console.log("Exportación de jugadores completada.");
         } catch (error) {
             console.error("Error al exportar jugadores:", error);
             showMessage('Error al exportar jugadores.', 'error');
@@ -1271,10 +1309,12 @@ if (exportarSolicitudesBtn) {
             showMessage('Debes iniciar sesión para exportar solicitudes.', 'error');
             return;
         }
+        console.log("Iniciando exportación de solicitudes.");
 
         const solicitudes = [];
         try {
             if (userRole === 'admin') {
+                console.log("Exportando todas las solicitudes (admin).");
                 const usersSnapshot = await getDocs(collection(db, 'users'));
                 for (const userDoc of usersSnapshot.docs) {
                     const userUid = userDoc.id;
@@ -1284,6 +1324,7 @@ if (exportarSolicitudesBtn) {
                 const publicSolicitudesSnapshot = await getDocs(getPublicSolicitudesCollectionRef());
                 publicSolicitudesSnapshot.forEach(doc => solicitudes.push(doc.data()));
             } else {
+                console.log("Exportando solicitudes privadas (usuario).");
                 const userSolicitudesSnapshot = await getDocs(getSolicitudesCollectionRef(currentUserId));
                 userSolicitudesSnapshot.forEach(doc => solicitudes.push(doc.data()));
             }
@@ -1301,6 +1342,7 @@ if (exportarSolicitudesBtn) {
             link.download = 'solicitudes.csv';
             link.click();
             showMessage('Solicitudes exportadas correctamente.', 'success');
+            console.log("Exportación de solicitudes completada.");
         } catch (error) {
             console.error("Error al exportar solicitudes:", error);
             showMessage('Error al exportar solicitudes.', 'error');
@@ -1319,6 +1361,7 @@ function importarCSV(csvContent, tipo) {
         return;
     }
 
+    console.log(`Iniciando importación de ${tipo}.`);
     const lines = csvContent.split('\n').filter(line => line.trim() !== '');
     if (lines.length === 0) {
         showMessage('El archivo CSV está vacío.', 'error');
@@ -1367,6 +1410,7 @@ function importarCSV(csvContent, tipo) {
                 } else if (tipo === 'solicitudes') {
                     collectionRef = getSolicitudesCollectionRef(currentUserId);
                 }
+                console.log(`Confirmada importación de ${dataToImport.length} ${tipo} en la colección: ${collectionRef.path}`);
 
                 for (const item of dataToImport) {
                     // Generar un nuevo ID de documento para cada importación
@@ -1379,6 +1423,7 @@ function importarCSV(csvContent, tipo) {
                 } else if (tipo === 'solicitudes') {
                     cargarSolicitudes();
                 }
+                console.log("Importación completada.");
             } catch (error) {
                 console.error(`Error al importar ${tipo}:`, error);
                 showMessage(`Error al importar ${tipo}: ${error.message}`, 'error');
@@ -1390,6 +1435,7 @@ function importarCSV(csvContent, tipo) {
         cancelImportBtn.onclick = () => {
             if (confirmImportModal) confirmImportModal.classList.add('hidden');
             showMessage('Importación cancelada.', 'info');
+            console.log("Importación cancelada.");
         };
     }
 }
@@ -1462,6 +1508,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Cargar datos inicialmente (después de que el DOM esté listo y el usuario autenticado)
+    console.log("DOM Cargado. Llamando a cargarJugadores y cargarSolicitudes.");
     cargarJugadores();
     cargarSolicitudes();
 });
@@ -1510,56 +1557,13 @@ function actualizarEstadisticasSolicitudes(solicitudes) {
         }]
     };
 
-    const config = {
-        type: 'bar',
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) { if (Number.isInteger(value)) return value; },
-                        color: '#4A5568' // gray-700
-                    },
-                    grid: {
-                        color: '#E2E8F0' // gray-200
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: '#4A5568' // gray-700
-                    },
-                    grid: {
-                        color: '#E2E8F0' // gray-200
-                    }
-                }
-            },
-            plugins: {
-                legend: {
-                    labels: {
-                        color: '#4A5568' // gray-700
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Estado de Solicitudes de Encordado',
-                    color: '#2D3748', // gray-800
-                    font: {
-                        size: 16
-                    }
-                }
-            }
-        }
-    };
-
     const ctx = document.getElementById('solicitudesChart');
     if (ctx) {
         if (solicitudesChart) {
             solicitudesChart.destroy(); // Destruir instancia anterior si existe
         }
         solicitudesChart = new Chart(ctx, config);
+        console.log("Gráfico de solicitudes actualizado.");
     }
 }
 
@@ -1571,6 +1575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // No es necesario llamar a cargarSolicitudes aquí, ya que se llama en onAuthStateChanged
             // y la tabla de solicitudes se actualiza al cargar. Solo necesitamos re-renderizar el gráfico.
             cargarSolicitudes(); // Esto asegura que los datos del gráfico se refresquen si los datos de la tabla cambian
+            console.log("Pestaña de resumen activada, recargando solicitudes para actualizar el gráfico.");
         });
     }
 });
