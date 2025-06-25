@@ -435,8 +435,10 @@ document.addEventListener('DOMContentLoaded', () => {
 // **********************************************
 
 // Referencia a la colección de solicitudes (anidada dentro del usuario)
-const getSolicitudesCollectionRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'solicitudes');
-const getPublicSolicitudesCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'solicitudes'); // Colección pública
+// MODIFICADO: Ajustado para la ruta directa bajo /users/{uid}/solicitudes
+const getSolicitudesCollectionRef = (uid) => collection(db, 'users', uid, 'solicitudes');
+// Colección pública (se mantiene la ruta esperada de artifacts/{appId}/public/data/solicitudes)
+const getPublicSolicitudesCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'solicitudes');
 
 
 // Cargar solicitudes (ajustada para roles y mostrar el creador)
@@ -457,7 +459,7 @@ async function cargarSolicitudes() {
             for (const userDoc of usersSnapshot.docs) {
                 const userUid = userDoc.id;
                 const userEmail = userDoc.data().email || 'Usuario Desconocido'; // Obtener email del creador
-                console.log(`Intentando cargar solicitudes para el usuario: ${userEmail} (UID: ${userUid})`);
+                console.log(`Intentando cargar solicitudes para el usuario: ${userEmail} (UID: ${userUid}) desde ruta: users/${userUid}/solicitudes`);
 
                 const userSolicitudesQuery = query(getSolicitudesCollectionRef(userUid));
                 const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
@@ -466,14 +468,14 @@ async function cargarSolicitudes() {
                 });
             }
              // También cargar solicitudes de la colección pública para administradores
-             console.log("Intentando cargar solicitudes de la colección pública.");
+             console.log("Intentando cargar solicitudes de la colección pública desde ruta: artifacts/{appId}/public/data/solicitudes");
              const publicSolicitudesSnapshot = await getDocs(getPublicSolicitudesCollectionRef());
              publicSolicitudesSnapshot.forEach(doc => {
                  solicitudes.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
              });
 
         } else if (currentUserId) {
-            console.log("Usuario normal. Cargando solo sus solicitudes privadas.");
+            console.log("Usuario normal. Cargando solo sus solicitudes privadas desde ruta: users/{UID_actual}/solicitudes");
             // Si es usuario normal, cargar solo sus solicitudes privadas
             const userSolicitudesQuery = query(getSolicitudesCollectionRef(currentUserId));
             const userSolicitudesSnapshot = await getDocs(userSolicitudesQuery);
@@ -658,6 +660,9 @@ if (solicitudForm) {
                 showMessage('Nueva solicitud pública añadida.', 'success');
             } else {
                 console.log("Añadiendo nueva solicitud privada para UID:", currentUserId);
+                // NOTA: Si el usuario desea que todas las nuevas solicitudes también se guarden en la ruta /users/{uid}/solicitudes
+                // y que no haya una distinción entre "privadas" y "públicas" en el código, habría que simplificar esta lógica.
+                // Por ahora, asumimos que "privado" significa bajo el UID del usuario, pero sin el prefijo "artifacts/appId".
                 await addDoc(getSolicitudesCollectionRef(currentUserId), newSolicitud);
                 showMessage('Nueva solicitud privada añadida.', 'success');
             }
@@ -701,9 +706,9 @@ async function mostrarEditarSolicitudModal(solicitudId, creadorUid) {
     console.log("Mostrando modal de edición para solicitud ID:", solicitudId, "Creador UID:", creadorUid);
 
     let solicitudDocRef;
-    if (creadorUid === 'public') { // Es una solicitud pública
+    if (creadorUid === 'public') { // Es una solicitud pública, usa la ruta pública original
         solicitudDocRef = doc(getPublicSolicitudesCollectionRef(), solicitudId);
-    } else { // Es una solicitud privada de un usuario
+    } else { // Es una solicitud privada de un usuario, usa la ruta corregida
         solicitudDocRef = doc(getSolicitudesCollectionRef(creadorUid), solicitudId);
     }
 
@@ -837,8 +842,10 @@ if (editSolicitudForm) {
 // **********************************************
 
 // Referencia a la colección de jugadores (anidada dentro del usuario)
-const getJugadoresCollectionRef = (uid) => collection(db, 'artifacts', appId, 'users', uid, 'jugadores');
-const getPublicJugadoresCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'jugadores'); // Colección pública
+// MODIFICADO: Ajustado para la ruta directa bajo /users/{uid}/jugadores
+const getJugadoresCollectionRef = (uid) => collection(db, 'users', uid, 'jugadores');
+// Colección pública (se mantiene la ruta esperada de artifacts/{appId}/public/data/jugadores)
+const getPublicJugadoresCollectionRef = () => collection(db, 'artifacts', appId, 'public', 'data', 'jugadores');
 
 // Cargar jugadores (ajustada para roles y mostrar el creador)
 async function cargarJugadores() {
@@ -858,7 +865,7 @@ async function cargarJugadores() {
             for (const userDoc of usersSnapshot.docs) {
                 const userUid = userDoc.id;
                 const userEmail = userDoc.data().email || 'Usuario Desconocido';
-                console.log(`Intentando cargar jugadores para el usuario: ${userEmail} (UID: ${userUid})`);
+                console.log(`Intentando cargar jugadores para el usuario: ${userEmail} (UID: ${userUid}) desde ruta: users/${userUid}/jugadores`);
 
                 const userJugadoresQuery = query(getJugadoresCollectionRef(userUid));
                 const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
@@ -867,14 +874,14 @@ async function cargarJugadores() {
                 });
             }
              // También cargar jugadores de la colección pública para administradores
-            console.log("Intentando cargar jugadores de la colección pública.");
+            console.log("Intentando cargar jugadores de la colección pública desde ruta: artifacts/{appId}/public/data/jugadores");
             const publicJugadoresSnapshot = await getDocs(getPublicJugadoresCollectionRef());
             publicJugadoresSnapshot.forEach(doc => {
                 jugadores.push({ id: doc.id, ...doc.data(), creadorEmail: 'Público', creadorUid: 'public' });
             });
 
         } else if (currentUserId) {
-            console.log("Usuario normal. Cargando solo sus jugadores privados.");
+            console.log("Usuario normal. Cargando solo sus jugadores privados desde ruta: users/{UID_actual}/jugadores");
             // Si es usuario normal, cargar solo sus jugadores privados
             const userJugadoresQuery = query(getJugadoresCollectionRef(currentUserId));
             const userJugadoresSnapshot = await getDocs(userJugadoresQuery);
@@ -1013,6 +1020,8 @@ if (jugadorForm) {
                 showMessage('Nuevo jugador público añadido.', 'success');
             } else {
                 console.log("Añadiendo nuevo jugador privado para UID:", currentUserId);
+                // NOTA: Si el usuario desea que todos los nuevos jugadores también se guarden en la ruta /users/{uid}/jugadores
+                // y que no haya una distinción entre "privados" y "públicos" en el código, habría que simplificar esta lógica.
                 await addDoc(getJugadoresCollectionRef(currentUserId), newJugador);
                 showMessage('Nuevo jugador privado añadido.', 'success');
             }
@@ -1056,9 +1065,9 @@ async function mostrarEditarJugadorModal(jugadorId, creadorUid) {
     console.log("Mostrando modal de edición para jugador ID:", jugadorId, "Creador UID:", creadorUid);
 
     let jugadorDocRef;
-    if (creadorUid === 'public') {
+    if (creadorUid === 'public') { // Es un jugador público, usa la ruta pública original
         jugadorDocRef = doc(getPublicJugadoresCollectionRef(), jugadorId);
-    } else {
+    } else { // Es un jugador privado de un usuario, usa la ruta corregida
         jugadorDocRef = doc(getJugadoresCollectionRef(creadorUid), jugadorId);
     }
 
