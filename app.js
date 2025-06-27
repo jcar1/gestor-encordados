@@ -54,34 +54,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
 
-// Función para verificar el rol del usuario (admin/user)
-async function checkUserRole(uid) {
-    const userDoc = await getDoc(doc(db, "users", uid));
-    return userDoc.exists() ? userDoc.data().role || "user" : "user";
-}
-
-// Actualizar rol de otro usuario (solo para admins)
-async function setAdminRole(targetUserId, isAdmin) {
-  if (userRole !== "admin") return false;
-
-  await updateDoc(doc(db, "users", targetUserId), {
-    role: isAdmin ? "admin" : "user"
-  });
-  return true;
-}
-
-// Función para actualizar el rol de un usuario (solo para admins)
-async function updateUserRole(email, newRole) {
-    try {
-        const user = await getAuth().getUserByEmail(email);
-        await setDoc(doc(db, "users", user.uid), { role: newRole }, { merge: true });
-        return true;
-    } catch (error) {
-        console.error("Error updating role:", error);
-        return false;
-    }
-}
-
 // Referencias a colecciones
 let jugadoresCollectionRef;
 let solicitudesCollectionRef;
@@ -104,6 +76,22 @@ let currentSolicitudesData = [];
 let jugadoresData = [];
 
 // --- LOGIN Y LOGOUT ---
+// Asegúrate de tener el formulario de login en tu index.html:
+/*
+<div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
+    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
+        <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
+        <form id="loginForm" class="space-y-4">
+            <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
+            <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
+            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
+        </form>
+        <div id="loginError" class="text-red-600 mt-2 text-center"></div>
+    </div>
+</div>
+<button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
+*/
+
 // Login
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -135,14 +123,7 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         userId = user.uid;
         document.getElementById('userIdDisplay').textContent = userId;
-        
-		// 👉 Cargar rol del usuario
-        userRole = await checkUserRole(userId);
-        if (userRole === "admin") {
-            document.getElementById("adminPanel").style.display = "block";
-        }
-		
-		document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('loginContainer').style.display = 'none';
         document.querySelector('.container').style.display = '';
         document.getElementById('logoutBtn').style.display = '';
         if (!isAuthReady) {
@@ -318,7 +299,157 @@ document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change'
 
 // --- AUTOCOMPLETADO DE JUGADORES MEJORADO ---
 function setupAutocomplete() {
-  }
+    const input = document.getElementById('solicitudJugadorNombre');
+    const hiddenInput = document.getElementById('solicitudJugadorId');
+    const autocompleteContainer = document.createElement('div');
+    autocompleteContainer.className = 'autocomplete-items absolute z-10 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto w-full';
+    input.parentNode.appendChild(autocompleteContainer);
+
+    input.addEventListener('input', function() {
+        const val = this.value.trim().toLowerCase();
+        autocompleteContainer.innerHTML = '';
+        
+        if (val.length < 2) {
+            hiddenInput.value = '';
+            // Limpiar campos de raqueta si no hay jugador seleccionado
+            document.getElementById('solicitudMarcaRaqueta').value = '';
+            document.getElementById('solicitudModeloRaqueta').value = '';
+            document.getElementById('solicitudTensionVertical').value = '';
+            document.getElementById('solicitudTensionHorizontal').value = '';
+            document.getElementById('solicitudTipoCuerda').value = '';
+            return;
+        }
+
+        const matches = jugadoresData.filter(jugador => 
+            jugador.nombreCompleto.toLowerCase().includes(val) || 
+            jugador.codigo.toString().includes(val)
+        ).slice(0, 10); // Mostrar hasta 10 resultados
+
+        if (matches.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'px-4 py-2 text-gray-500';
+            noResults.textContent = 'No se encontraron jugadores';
+            autocompleteContainer.appendChild(noResults);
+            return;
+        }
+
+        matches.forEach(jugador => {
+            const item = document.createElement('div');
+            item.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer';
+            item.innerHTML = `
+                <div class="font-semibold">${jugador.nombreCompleto}</div>
+                <div class="text-sm text-gray-600">
+                    <span class="font-medium">Código:</span> ${jugador.codigo}
+                    ${jugador.marcaRaqueta ? `<span class="ml-2"><span class="font-medium">Raqueta:</span> ${jugador.marcaRaqueta} ${jugador.modeloRaqueta || ''}</span>` : ''}
+                </div>
+            `;
+            
+            item.addEventListener('click', function() {
+                input.value = jugador.nombreCompleto;
+                hiddenInput.value = jugador.id;
+                autocompleteContainer.innerHTML = '';
+                
+                // Autocompletar datos de raqueta del jugador
+                document.getElementById('solicitudMarcaRaqueta').value = jugador.marcaRaqueta || '';
+                document.getElementById('solicitudModeloRaqueta').value = jugador.modeloRaqueta || '';
+                document.getElementById('solicitudTensionVertical').value = jugador.tensionVertical || '';
+                document.getElementById('solicitudTensionHorizontal').value = jugador.tensionHorizontal || '';
+                document.getElementById('solicitudTipoCuerda').value = jugador.tipoCuerda || '';
+            });
+            
+            autocompleteContainer.appendChild(item);
+        });
+    });
+
+    // Cerrar autocompletado al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+            autocompleteContainer.innerHTML = '';
+        }
+    });
+
+    // Manejar teclado (flechas arriba/abajo y enter)
+    input.addEventListener('keydown', function(e) {
+        const items = autocompleteContainer.querySelectorAll('div');
+        let currentFocus = -1;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus = Math.min(currentFocus + 1, items.length - 1);
+            setActive(items, currentFocus);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus = Math.max(currentFocus - 1, -1);
+            setActive(items, currentFocus);
+        } else if (e.key === 'Enter' && currentFocus > -1) {
+            e.preventDefault();
+            items[currentFocus].click();
+        }
+    });
+
+    function setActive(items, index) {
+        items.forEach(item => item.classList.remove('bg-blue-50'));
+        if (index >= 0 && index < items.length) {
+            items[index].classList.add('bg-blue-50');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
+}
+
+// [El resto del código permanece igual]
+
+
+    const input = document.getElementById('solicitudJugadorNombre');
+    const hiddenInput = document.getElementById('solicitudJugadorId');
+    const autocompleteContainer = document.createElement('div');
+    autocompleteContainer.className = 'autocomplete-items';
+    input.parentNode.appendChild(autocompleteContainer);
+
+    input.addEventListener('input', function() {
+        const val = this.value.trim().toLowerCase();
+        autocompleteContainer.innerHTML = '';
+        
+        if (val.length < 2) {
+            hiddenInput.value = '';
+            return;
+        }
+
+        const matches = jugadoresData.filter(jugador => 
+            jugador.nombreCompleto.toLowerCase().includes(val) || 
+            jugador.codigo.toLowerCase().includes(val)
+        ).slice(0, 5);
+
+        if (matches.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.textContent = 'No se encontraron jugadores';
+            autocompleteContainer.appendChild(noResults);
+            return;
+        }
+
+        matches.forEach(jugador => {
+            const item = document.createElement('div');
+            item.innerHTML = `<strong>${jugador.codigo}</strong> - ${jugador.nombreCompleto}`;
+            item.addEventListener('click', function() {
+                input.value = jugador.nombreCompleto;
+                hiddenInput.value = jugador.id;
+                autocompleteContainer.innerHTML = '';
+                
+                // Autocompletar datos de raqueta
+                document.getElementById('solicitudMarcaRaqueta').value = jugador.marcaRaqueta || '';
+                document.getElementById('solicitudModeloRaqueta').value = jugador.modeloRaqueta || '';
+                document.getElementById('solicitudTensionVertical').value = jugador.tensionVertical || '';
+                document.getElementById('solicitudTensionHorizontal').value = jugador.tensionHorizontal || '';
+                document.getElementById('solicitudTipoCuerda').value = jugador.tipoCuerda || '';
+            });
+            autocompleteContainer.appendChild(item);
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+            autocompleteContainer.innerHTML = '';
+        }
+    });
 
 // --- GESTIÓN DE JUGADORES ---
 function loadJugadoresParaDropdown() {
@@ -330,7 +461,8 @@ function loadJugadoresParaDropdown() {
             jugadoresData.push({ id: doc.id, ...doc.data() });
         });
 
-        
+        // Activar autocompletado luego de tener los datos cargados
+        setupAutocomplete();
     }).catch(error => {
         console.error("Error cargando jugadores para dropdown:", error);
         showModalMessage("Error al cargar jugadores", "error");
@@ -1631,37 +1763,6 @@ async function loadInitialData() {
     }
 }
 
-async function toggleAdmin() {
-    const input = document.getElementById('userToChange');
-    const feedback = document.getElementById('adminChangeResult');
-    const uid = input.value.trim();
-    feedback.textContent = '';
-    
-    if (!uid) {
-        feedback.textContent = "⚠️ Debes ingresar un UID.";
-        feedback.className = "text-red-600";
-        return;
-    }
-
-    try {
-        const currentRole = await checkUserRole(uid);
-        const isAdminNow = currentRole === 'admin';
-        const success = await setAdminRole(uid, !isAdminNow);
-
-        if (success) {
-            feedback.textContent = `✅ Rol actualizado a: ${!isAdminNow ? 'admin' : 'user'}`;
-            feedback.className = "text-green-600";
-        } else {
-            feedback.textContent = "❌ No tienes permisos para cambiar roles.";
-            feedback.className = "text-red-600";
-        }
-    } catch (error) {
-        console.error("Error al cambiar rol:", error);
-        feedback.textContent = "❌ Error al cambiar el rol. Consulta la consola.";
-        feedback.className = "text-red-600";
-    }
-}
-
 // --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
 async function importarCSV(csvText, type = 'solicitudes') {
     const lines = csvText.trim().split('\n');
@@ -1801,10 +1902,7 @@ async function importarCSV(csvText, type = 'solicitudes') {
 
 // Iniciar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-// Inicializa Firebase y escucha cambios de autenticación
-  // Este evento ya está manejado por la primera instancia de onAuthStateChanged
-    // No necesitas duplicarlo
-});
+    initApplication();
     
     // Add buttons for bulk imports
     const importContainer = document.createElement('div');
@@ -1854,8 +1952,4 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         fileInput.click();
     });
-
-window.auth = auth;
-window.db = db;
-window.userId = userId;
-window.checkUserRole = checkUserRole;
+});
