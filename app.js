@@ -9,7 +9,7 @@ const firebaseConfig = {
     measurementId: "G-VJG0HVKMZV"
 };
 
-// Importaciones de Firebase
+// Importaciones actualizadas
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getAuth, 
@@ -19,14 +19,9 @@ import {
     signOut,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-let userRole = null;
-
-// Observador de estado de autenticación
-
 import { 
     getFirestore, 
     collection, 
-    collectionGroup,
     doc,
     getDoc,
     setDoc,
@@ -42,6 +37,7 @@ import {
     onSnapshot,
     initializeFirestore
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
 // Configuración mejorada de Firestore
 const firestoreSettings = {
@@ -53,72 +49,131 @@ const firestoreSettings = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
+const functions = getFunctions(app);
 
-// Referencias a colecciones
+// --- MECANISMO DE CARGA SEGURA --- 
+
+if (localStorage.getItem('useLegacyVersion') === 'true') {
+    console.warn("Cargando versión legacy por solicitud explícita");
+    // Crear script dinámico para evitar ejecución del resto del código
+    const script = document.createElement('script');
+    script.src = 'app-legacy.js';
+    document.head.appendChild(script);
+    // Detener ejecución del resto de este script
+    throw new Error("Loading legacy version");
+} else {
+    console.log("Cargando versión mejorada con controles de seguridad");
+}
+
+// Variables globales actualizadas
 let jugadoresCollectionRef;
 let solicitudesCollectionRef;
 let userId = null;
 let isAuthReady = false;
+let userRole = 'user';
+let lastLoginDate = null;
+let loginHistory = [];
+const ADMIN_EMAILS = ['jcsueca@gmail.com', 'jcar.valencia@yahoo.com']; // Configura tus emails admin aquí
 
-// Variables para gráficos
+// Variables para gráficos (sin cambios)
 let pagoChart = null;
 let entregaChart = null;
 let ingresosChart = null;
 let jugadoresChart = null;
 
-// Suscripciones
+// Suscripciones (sin cambios)
 let unsubscribeJugadores = null;
 let unsubscribeSolicitudes = null;
 let unsubscribeJugadoresLista = null;
 
-// Datos actuales
+// Datos actuales (sin cambios)
 let currentSolicitudesData = [];
 let jugadoresData = [];
 
-// --- LOGIN Y LOGOUT ---
-// Asegúrate de tener el formulario de login en tu index.html:
-/*
-<div id="loginContainer" class="flex flex-col items-center justify-center min-h-screen bg-gray-100" style="display:none;">
-    <div class="bg-white p-8 rounded shadow-md w-full max-w-sm">
-        <h2 class="text-2xl font-bold mb-4 text-center">Iniciar Sesión</h2>
-        <form id="loginForm" class="space-y-4">
-            <input type="email" id="loginEmail" class="w-full p-2 border rounded" placeholder="Correo" required>
-            <input type="password" id="loginPassword" class="w-full p-2 border rounded" placeholder="Contraseña" required>
-            <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">Entrar</button>
-        </form>
-        <div id="loginError" class="text-red-600 mt-2 text-center"></div>
-    </div>
-</div>
-<button id="logoutBtn" class="absolute top-4 right-4 bg-gray-200 px-4 py-2 rounded" style="display:none;">Cerrar sesión</button>
-*/
-
-// Login
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const loginError = document.getElementById('loginError');
-    loginError.textContent = '';
+// --- NUEVAS FUNCIONES DE SEGURIDAD ---
+async function getClientIP() {
     try {
-        await setPersistence(auth, browserLocalPersistence);
-        await signInWithEmailAndPassword(auth, email, password);
-        document.getElementById('loginContainer').style.display = 'none';
-        document.querySelector('.container').style.display = '';
-        document.getElementById('logoutBtn').style.display = '';
-        initApplication();
+        const getIP = httpsCallable(functions, 'getClientIP');
+        const result = await getIP();
+        return result.data.ip;
     } catch (error) {
-        loginError.textContent = 'Usuario o contraseña incorrectos';
+        console.error("Error obteniendo IP:", error);
+        return 'unknown';
     }
-});
+}
 
-// Logout
-document.getElementById('logoutBtn').onclick = () => {
-    signOut(auth);
-};
+function sanitizeInput(input) {
+    if (typeof input !== 'string') return input;
+    return input.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
-// --- FIN LOGIN Y LOGOUT ---
+function checkPermissions(requiredRole = 'user') {
+    if (!isAuthReady) return false;
+    if (requiredRole === 'admin' && userRole !== 'admin') {
+        showModalMessage("Acceso denegado: se requieren privilegios de administrador", "error");
+        return false;
+    }
+    return true;
+}
 
-// Observador de estado de autenticación
+let inactivityTimer;
+function setupInactivityTimer() {
+    const inactivityTimeout = 30 * 60 * 1000; // 30 minutos
+    
+    const resetTimer = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            signOut(auth);
+            showModalMessage("Sesión cerrada por inactividad", "warning");
+        }, inactivityTimeout);
+    };
+    
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+        document.addEventListener(event, resetTimer, false);
+    });
+    
+    resetTimer();
+}
+
+async function logAction(action, details = {}) {
+    if (!userId) return;
+    
+    try {
+        await addDoc(collection(db, `users/${userId}/private/auditoria`), {
+            action,
+            details: JSON.stringify(details),
+            timestamp: Timestamp.now(),
+            ip: await getClientIP(),
+            userAgent: navigator.userAgent
+        });
+    } catch (error) {
+        console.error("Error registrando acción:", error);
+    }
+}
+
+// --- MECANISMO DE REVERSIÓN ---
+function setupRollbackButton() {
+    const rollbackBtn = document.createElement('button');
+    rollbackBtn.id = 'rollbackBtn';
+    rollbackBtn.className = 'fixed bottom-4 left-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-lg z-50';
+    rollbackBtn.innerHTML = '<i class="fas fa-undo mr-2"></i>Restaurar Versión Anterior';
+    rollbackBtn.onclick = () => {
+        showConfirmModal("¿Está seguro de que desea restaurar la versión anterior? Se perderán las mejoras de seguridad.", () => {
+            localStorage.setItem('useLegacyVersion', 'true');
+            window.location.reload();
+        });
+    };
+    document.body.appendChild(rollbackBtn);
+    
+    // Solo mostrar si es admin
+    if (userRole === 'admin') {
+        rollbackBtn.style.display = 'block';
+    } else {
+        rollbackBtn.style.display = 'none';
+    }
+}
+
+// --- OBSERVADOR DE AUTENTICACIÓN ACTUALIZADO ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         userId = user.uid;
@@ -126,14 +181,35 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('loginContainer').style.display = 'none';
         document.querySelector('.container').style.display = '';
         document.getElementById('logoutBtn').style.display = '';
+        
+        // Verificar rol de usuario
+        userRole = ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user';
+        
+        // Registrar acceso
+        const loginTime = new Date();
+        lastLoginDate = loginTime;
+        loginHistory.push({
+            date: loginTime,
+            ip: await getClientIP()
+        });
+        
+        await updateDoc(doc(db, `users/${userId}/private/accesos`), {
+            lastLogin: Timestamp.fromDate(loginTime),
+            loginHistory: loginHistory.slice(-10),
+            role: userRole
+        }, { merge: true });
+
         if (!isAuthReady) {
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
             isAuthReady = true;
             loadInitialData();
+            setupInactivityTimer();
+            setupRollbackButton();
         }
     } else {
-        document.getElementById('userIdDisplay').textContent = "No autenticado";
+        userRole = 'user';
+        lastLoginDate = null;
         document.getElementById('loginContainer').style.display = '';
         document.querySelector('.container').style.display = 'none';
         document.getElementById('logoutBtn').style.display = 'none';
