@@ -9,7 +9,7 @@ const firebaseConfig = {
     measurementId: "G-VJG0HVKMZV"
 };
 
-// Importaciones actualizadas
+// Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getAuth, 
@@ -35,37 +35,23 @@ import {
     writeBatch,
     addDoc,
     onSnapshot,
-    initializeFirestore
+    initializeFirestore,
+    arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
 // Configuración mejorada de Firestore
 const firestoreSettings = {
     experimentalForceLongPolling: true,
-    merge: true
+    merge: true,
+    ignoreUndefinedProperties: true
 };
 
 // Inicialización de Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
-const functions = getFunctions(app);
 
-// --- MECANISMO DE CARGA SEGURA --- 
-
-if (localStorage.getItem('useLegacyVersion') === 'true') {
-    console.warn("Cargando versión legacy por solicitud explícita");
-    // Crear script dinámico para evitar ejecución del resto del código
-    const script = document.createElement('script');
-    script.src = 'app-legacy.js';
-    document.head.appendChild(script);
-    // Detener ejecución del resto de este script
-    throw new Error("Loading legacy version");
-} else {
-    console.log("Cargando versión mejorada con controles de seguridad");
-}
-
-// Variables globales actualizadas
+// Variables globales
 let jugadoresCollectionRef;
 let solicitudesCollectionRef;
 let userId = null;
@@ -73,29 +59,29 @@ let isAuthReady = false;
 let userRole = 'user';
 let lastLoginDate = null;
 let loginHistory = [];
-const ADMIN_EMAILS = ['jcsueca@gmail.com', 'jcar.valencia@yahoo.com']; // Configura tus emails admin aquí
+const ADMIN_EMAILS = ['jcsueca@gmail.com']; // Reemplaza con tus emails admin
 
-// Variables para gráficos (sin cambios)
+// Variables para gráficos
 let pagoChart = null;
 let entregaChart = null;
 let ingresosChart = null;
 let jugadoresChart = null;
 
-// Suscripciones (sin cambios)
+// Suscripciones
 let unsubscribeJugadores = null;
 let unsubscribeSolicitudes = null;
 let unsubscribeJugadoresLista = null;
 
-// Datos actuales (sin cambios)
+// Datos actuales
 let currentSolicitudesData = [];
 let jugadoresData = [];
 
-// --- NUEVAS FUNCIONES DE SEGURIDAD ---
+// --- FUNCIONES DE SEGURIDAD MEJORADAS ---
 async function getClientIP() {
     try {
-        const getIP = httpsCallable(functions, 'getClientIP');
-        const result = await getIP();
-        return result.data.ip;
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        return data.ip || 'unknown';
     } catch (error) {
         console.error("Error obteniendo IP:", error);
         return 'unknown';
@@ -139,13 +125,13 @@ async function logAction(action, details = {}) {
     if (!userId) return;
     
     try {
-        await addDoc(collection(db, `users/${userId}/private/auditoria`), {
+        await setDoc(doc(db, `users/${userId}/private/auditoria`), {
             action,
             details: JSON.stringify(details),
             timestamp: Timestamp.now(),
             ip: await getClientIP(),
             userAgent: navigator.userAgent
-        });
+        }, { merge: true });
     } catch (error) {
         console.error("Error registrando acción:", error);
     }
@@ -153,24 +139,21 @@ async function logAction(action, details = {}) {
 
 // --- MECANISMO DE REVERSIÓN ---
 function setupRollbackButton() {
+    if (document.getElementById('rollbackBtn')) return;
+    
     const rollbackBtn = document.createElement('button');
     rollbackBtn.id = 'rollbackBtn';
     rollbackBtn.className = 'fixed bottom-4 left-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-lg z-50';
     rollbackBtn.innerHTML = '<i class="fas fa-undo mr-2"></i>Restaurar Versión Anterior';
     rollbackBtn.onclick = () => {
-        showConfirmModal("¿Está seguro de que desea restaurar la versión anterior? Se perderán las mejoras de seguridad.", () => {
+        showConfirmModal("¿Restaurar versión anterior? Se perderán las mejoras de seguridad.", () => {
             localStorage.setItem('useLegacyVersion', 'true');
             window.location.reload();
         });
     };
     document.body.appendChild(rollbackBtn);
     
-    // Solo mostrar si es admin
-    if (userRole === 'admin') {
-        rollbackBtn.style.display = 'block';
-    } else {
-        rollbackBtn.style.display = 'none';
-    }
+    rollbackBtn.style.display = userRole === 'admin' ? 'block' : 'none';
 }
 
 // --- OBSERVADOR DE AUTENTICACIÓN ACTUALIZADO ---
@@ -188,24 +171,25 @@ onAuthStateChanged(auth, async (user) => {
         // Registrar acceso
         const loginTime = new Date();
         lastLoginDate = loginTime;
-        loginHistory.push({
-            date: loginTime,
-            ip: await getClientIP()
-        });
+        const ip = await getClientIP();
+        loginHistory.push({ date: loginTime, ip });
         
-        await updateDoc(doc(db, `users/${userId}/private/accesos`), {
-            lastLogin: Timestamp.fromDate(loginTime),
-            loginHistory: loginHistory.slice(-10),
-            role: userRole
-        }, { merge: true });
+        try {
+            await setDoc(doc(db, `users/${userId}/private/accesos`), {
+                lastLogin: Timestamp.fromDate(loginTime),
+                loginHistory: arrayUnion({ date: Timestamp.now(), ip }),
+                role: userRole,
+                email: user.email
+            }, { merge: true });
+        } catch (error) {
+            console.error("Error registrando acceso:", error);
+        }
 
         if (!isAuthReady) {
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
             isAuthReady = true;
-            loadInitialData();
-            setupInactivityTimer();
-            setupRollbackButton();
+            initApplication();
         }
     } else {
         userRole = 'user';
@@ -1977,10 +1961,26 @@ async function importarCSV(csvText, type = 'solicitudes') {
 }
 
 // Iniciar la aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    initApplication();
+
+
+
+
+
+// --- FUNCIÓN DE INICIALIZACIÓN ---
+function initApplication() {
+    loadInitialData();
+    setupInactivityTimer();
+    setupRollbackButton();
     
-    // Add buttons for bulk imports
+    // Verificar si es la primera carga
+    
+    if (!localStorage.getItem('appInitialized')) {
+        showModalMessage("Bienvenido a la versión mejorada con controles de seguridad", "info");
+        localStorage.setItem('appInitialized', 'true');
+    }
+}
+
+// Add buttons for bulk imports
     const importContainer = document.createElement('div');
     importContainer.className = 'my-6 p-4 bg-gray-50 rounded-lg shadow';
     importContainer.innerHTML = `
@@ -2029,3 +2029,14 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.click();
     });
 });
+// --- INICIO DE LA APLICACIÓN ---
+if (localStorage.getItem('useLegacyVersion') === 'true') {
+    console.warn("Cargando versión legacy por solicitud explícita");
+    const script = document.createElement('script');
+    script.src = 'app-legacy.js';
+    document.head.appendChild(script);
+} else {
+    document.addEventListener('DOMContentLoaded', () => {
+        initApplication();
+    });
+}

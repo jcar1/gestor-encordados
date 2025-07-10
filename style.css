@@ -463,3 +463,18 @@ input[type="file"]::file-selector-button:hover {
         width: calc(100% - 20px);
     }
 }
+
+#adminPanel {
+    z-index: 1000; /* Asegura que esté por encima de todo */
+    right: 20px;
+    bottom: 20px;
+    width: 250px;
+}
+
+@media (max-width: 768px) {
+    #adminPanel {
+        width: calc(100% - 40px);
+        right: 20px;
+        bottom: 80px;
+    }
+}
