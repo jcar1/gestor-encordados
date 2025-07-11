@@ -1,3 +1,4 @@
+/* style.css - Versión completa */
 body {
     font-family: 'Inter', sans-serif;
     background-color: #f3f4f6;
@@ -293,9 +294,6 @@ input[type="file"]::file-selector-button:hover {
     background-color: #f3f4f6;
 }
 
-
-
-
 /* Mejoras para pestañas */
 .tab-button {
     transition: all 0.2s ease;
@@ -389,13 +387,13 @@ input[type="file"]::file-selector-button:hover {
     }
 }
 
-/* Añade este código al final del archivo */
+/* Añadir este código al final del archivo */
 .table-responsive th {
-    position: sticky;
-    top: 0;
-    background-color: #f9fafb;
-    z-index: 10;
-    text-indent: -12ch; /* Mueve el texto 12 caracteres a la izquierda */
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    z-index: 10;
+    text-indent: -12ch; /* Mueve el texto 12 caracteres a la izquierda */
 }
 /* Estilos para seguridad */
 .security-alert {
@@ -479,6 +477,7 @@ input[type="file"]::file-selector-button:hover {
     }
 }
 
+/* ===== NUEVOS ESTILOS AÑADIDOS ===== */
 /* Loading indicator */
 .loading-indicator {
   position: fixed;
