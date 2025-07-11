@@ -59,18 +59,40 @@ async function cargarDatosIniciales() {
   mostrarCarga(true);
   try {
     const [jugadores, solicitudes] = await Promise.all([
-      obtenerJugadores(),
-      obtenerSolicitudes()
+      obtenerJugadores().catch(e => {
+        mostrarError("Error cargando jugadores");
+        console.error("Detalle error jugadores:", e);
+        return []; // Retorna array vacío para que la app no se rompa
+      }),
+      obtenerSolicitudes().catch(e => {
+        mostrarError("Error cargando solicitudes");
+        console.error("Detalle error solicitudes:", e);
+        return []; // Retorna array vacío para continuar
+      })
     ]);
     
-    estadoApp.jugadores = jugadores;
-    estadoApp.solicitudes = solicitudes;
-    estadoApp.stats = calcularEstadisticasAvanzadas(solicitudes);
+    // Actualiza el estado incluso si un array está vacío
+    estadoApp.jugadores = jugadores || [];
+    estadoApp.solicitudes = solicitudes || [];
+    
+    // Solo calcula stats si hay datos
+    if (solicitudes.length > 0) {
+      estadoApp.stats = calcularEstadisticasAvanzadas(solicitudes);
+    } else {
+      estadoApp.stats = { 
+        total: 0, 
+        ingresos: 0, 
+        promedio: 0,
+        solicitudesHoy: 0,
+        ingresos30Dias: 0,
+        promedioDiario: 0
+      };
+    }
     
     actualizarUI();
   } catch (error) {
-    console.error("Error al cargar datos:", error);
-    mostrarError("Error al cargar datos. Intente recargar la página.");
+    console.error("Error general en carga inicial:", error);
+    mostrarError("Error crítico. Contacte al soporte.");
   } finally {
     mostrarCarga(false);
   }
@@ -89,12 +111,20 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Exportar para acceso desde consola (solo desarrollo)
-if (process.env.NODE_ENV === "development") {
+// Verifica si estamos en desarrollo (localhost) o producción
+const isLocalDevelopment = 
+  window.location.hostname === 'localhost' || 
+  window.location.hostname === '127.0.0.1';
+
+// Opcional: Habilitar debug con hash en la URL (ej: https://tusitio.com#debug)
+const isDebugMode = window.location.hash === '#debug';
+
+if (isLocalDevelopment || isDebugMode) {
   window.app = {
     estado: estadoApp,
     ui: elementosUI,
     cargarDatosIniciales,
     actualizarUI
   };
+  console.log("Modo desarrollo/debug activado"); // Opcional
 }
