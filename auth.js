@@ -1,38 +1,17 @@
-// Importaciones de Firebase
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { 
-    getAuth, 
-    signInWithEmailAndPassword,
-    setPersistence,
-    browserLocalPersistence,
-    signOut,
-    onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { 
-    getFirestore, 
-    collection, 
-    doc,
-    getDoc,
-    setDoc,
-    updateDoc,
-    deleteDoc,
-    getDocs,
-    query,
-    where,
-    orderBy,
-    Timestamp,
-    writeBatch,
-    addDoc,
-    onSnapshot,
-    initializeFirestore,
-    arrayUnion
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// auth.js
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-// Configuración mejorada de Firestore
-    signInWithEmailAndPassword,
-    setPersistence,
-    browserLocalPersistence,
-    onAuthStateChanged
-const auth = getAuth(app);
-            signOut(auth);
-onAuthStateChanged(auth, async (user) => {
+const auth = getAuth();
+
+export async function iniciarSesion(email, password) {
+  await setPersistence(auth, browserLocalPersistence);
+  return signInWithEmailAndPassword(auth, email, password);
+}
+
+export function cerrarSesion() {
+  return signOut(auth);
+}
+
+export function observarAutenticacion(callback) {
+  onAuthStateChanged(auth, callback);
+}
