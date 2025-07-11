@@ -4,6 +4,7 @@ import { obtenerJugadores, agregarJugador, actualizarJugador, eliminarJugador } 
 import { obtenerSolicitudes, agregarSolicitud, actualizarSolicitud, eliminarSolicitud } from "./solicitudes.js";
 import { calcularEstadisticas, calcularEstadisticasAvanzadas } from "./estadisticas.js";
 import { formatearFecha, validarEmail } from "./utilidades.js";
+import { mostrarError } from "./ui-helpers.js";
 
 // Elementos UI
 const elementosUI = {
@@ -31,13 +32,6 @@ function mostrarCarga(mostrar = true) {
   elementosUI.loadingIndicator.style.display = mostrar ? "block" : "none";
 }
 
-function mostrarError(mensaje) {
-  elementosUI.errorContainer.textContent = mensaje;
-  elementosUI.errorContainer.style.display = "block";
-  setTimeout(() => {
-    elementosUI.errorContainer.style.display = "none";
-  }, 5000);
-}
 
 // Actualizar UI con datos
 function actualizarUI() {

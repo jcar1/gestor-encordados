@@ -10,8 +10,8 @@ import {
   sendPasswordResetEmail,
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { mostrarError } from "./main.js";
 
+import { mostrarError } from "./ui-helpers.js"; 
 const auth = getAuth();
 
 // Iniciar sesión

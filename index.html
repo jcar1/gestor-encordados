@@ -6,16 +6,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	  
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+	<script type="module" src="ui-helpers.js"></script>           <!-- Helpers -->
+  <script type="module" src="firebase-init.js"></script>        <!-- Firebase -->
+  <script type="module" src="auth.js"></script>                 <!-- Autenticación -->
+  <script type="module" src="jugadores.js"></script>            <!-- Modelos -->
+  <script type="module" src="solicitudes.js"></script>
+  <script type="module" src="estadisticas.js"></script>
+  <script type="module" src="utilidades.js"></script>
+  <script type="module" src="main.js"></script>                 <!-- Lógica principal -->
+  <script type="module" src="ui.js"></script>                   <!-- UI (el último) -->
+	
 </head>
 <body>
   <div id="loadingIndicator" class="loading-indicator" style="display: none;">
     <div class="loading-spinner"></div>
     <p>Cargando...</p>
   </div>
-  
   <div id="errorContainer" class="error-message" style="display: none;"></div>
-  
+     
   <main role="main">
     <header class="app-header">
       <h1>Gestor de Encordados</h1>
