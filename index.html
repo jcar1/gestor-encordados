@@ -4,35 +4,195 @@
   <meta charset="UTF-8">
   <title>Gestor de Encordados</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+  <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+    <div class="loading-spinner"></div>
+    <p>Cargando...</p>
+  </div>
+  
+  <div id="errorContainer" class="error-message" style="display: none;"></div>
+  
   <main role="main">
-    <h1>Gestor de Encordados</h1>
-    <p>Bienvenido. User ID: <span id="userIdDisplay">Cargando...</span></p>
-
-    <section>
-      <h2>Formato CSV esperado para importar:</h2>
-      <pre>
+    <header class="app-header">
+      <h1>Gestor de Encordados</h1>
+      <div class="user-info">
+        <p>Bienvenido. User ID: <span id="userIdDisplay">Cargando...</span></p>
+        <button id="logoutBtn" class="btn btn-secondary">Cerrar sesión</button>
+      </div>
+    </header>
+    
+    <nav class="tabs">
+      <button class="tab-button active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-button" data-tab="solicitudes">Solicitudes</button>
+      <button class="tab-button" data-tab="jugadores">Jugadores</button>
+      <button class="tab-button" data-tab="importar">Importar</button>
+    </nav>
+    
+    <div id="dashboard" class="tab-content active">
+      <section class="stats-grid">
+        <div class="stat-card text-blue">
+          <h3>Total solicitudes</h3>
+          <p id="statTotalSolicitudes">0</p>
+        </div>
+        <div class="stat-card text-green">
+          <h3>Ingresos totales</h3>
+          <p id="statIngresosTotales">0.00 €</p>
+        </div>
+        <div class="stat-card text-purple">
+          <h3>Precio promedio</h3>
+          <p id="statPrecioPromedio">0.00 €</p>
+        </div>
+        <div class="stat-card text-yellow">
+          <h3>Solicitudes hoy</h3>
+          <p id="statSolicitudesHoy">0</p>
+        </div>
+        <div class="stat-card text-blue">
+          <h3>Ingresos últimos 30 días</h3>
+          <p id="statIngresos30Dias">0.00 €</p>
+        </div>
+        <div class="stat-card text-green">
+          <h3>Promedio diario</h3>
+          <p id="statPromedioDiario">0.00 €</p>
+        </div>
+      </section>
+      
+      <section class="charts-grid">
+        <div class="chart-card">
+          <h3>Ingresos por mes</h3>
+          <canvas id="ingresosChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Solicitudes por tipo de cuerda</h3>
+          <canvas id="cuerdasChart"></canvas>
+        </div>
+      </section>
+    </div>
+    
+    <div id="solicitudes" class="tab-content">
+      <div class="section-header">
+        <h2>Gestión de Solicitudes</h2>
+        <button id="nuevaSolicitudBtn" class="btn btn-primary">Nueva Solicitud</button>
+      </div>
+      
+      <div class="filtros">
+        <div class="form-group">
+          <label for="filtroEstado">Estado:</label>
+          <select id="filtroEstado">
+            <option value="">Todos</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="pagado">Pagado</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="filtroDesde">Desde:</label>
+          <input type="date" id="filtroDesde">
+        </div>
+        
+        <div class="form-group">
+          <label for="filtroHasta">Hasta:</label>
+          <input type="date" id="filtroHasta">
+        </div>
+        
+        <button id="aplicarFiltrosBtn" class="btn btn-secondary">Aplicar</button>
+      </div>
+      
+      <div class="table-responsive">
+        <table id="tablaSolicitudes">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllSolicitudes"></th>
+              <th>Código</th>
+              <th>Jugador</th>
+              <th>Raqueta</th>
+              <th>Tensiones</th>
+              <th>Cuerda</th>
+              <th>Solicitud</th>
+              <th>Entrega</th>
+              <th>Precio</th>
+              <th>Pago</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="solicitudesBody">
+            <!-- Datos cargados dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div id="jugadores" class="tab-content">
+      <div class="section-header">
+        <h2>Gestión de Jugadores</h2>
+        <button id="nuevoJugadorBtn" class="btn btn-primary">Nuevo Jugador</button>
+      </div>
+      
+      <div class="busqueda">
+        <div class="form-group">
+          <input type="text" id="buscarJugador" placeholder="Buscar jugador...">
+          <button id="buscarJugadorBtn" class="btn btn-secondary">Buscar</button>
+        </div>
+      </div>
+      
+      <div class="table-responsive">
+        <table id="tablaJugadores">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre</th>
+              <th>Teléfono</th>
+              <th>Email</th>
+              <th>Nivel</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="jugadoresBody">
+            <!-- Datos cargados dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div id="importar" class="tab-content">
+      <h2>Importar Datos desde CSV</h2>
+      
+      <section>
+        <h3>Formato CSV esperado:</h3>
+        <pre>
 Encabezados: Código Jugador,Nombre Jugador,Marca Raqueta,Modelo Raqueta,Tensión Vertical,Tensión Horizontal,Tipo Cuerda,Cuerda Incluida,Fecha Solicitud,Fecha Entrega Estimada,Precio,Estado Pago,Estado Entrega,Notas,Fecha Pago
 Cuerda Incluida debe ser "Sí" o "No". Fechas como dd/mm/aaaa.
-      </pre>
-    </section>
-
-    <section id="estadisticas">
-      <h2>Estadísticas</h2>
-      <ul>
-        <li>Total solicitudes: <span id="statTotalSolicitudes">0</span></li>
-        <li>Ingresos totales: <span id="statIngresosTotales">0.00 €</span></li>
-        <li>Precio promedio: <span id="statPrecioPromedio">0.00 €</span></li>
-        <li>Solicitudes hoy: <span id="statSolicitudesHoy">0</span></li>
-        <li>Ingresos últimos 30 días: <span id="statIngresos30Dias">0.00 €</span></li>
-        <li>Promedio diario: <span id="statPromedioDiario">0.00 €</span></li>
-      </ul>
-      <p>Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
-    </section>
+        </pre>
+      </section>
+      
+      <div class="form-group">
+        <label for="archivoCSV">Seleccionar archivo CSV:</label>
+        <input type="file" id="archivoCSV" accept=".csv">
+      </div>
+      
+      <button id="importarCSVBtn" class="btn btn-primary">Importar</button>
+      
+      <div id="resultadoImportacion" class="resultado-importacion" style="display: none;">
+        <h3>Resultado de la importación:</h3>
+        <p id="importacionExitosas">0 registros importados con éxito</p>
+        <p id="importacionFallidas">0 registros con errores</p>
+        <div id="erroresImportacion" class="errores-importacion"></div>
+      </div>
+    </div>
   </main>
-
-  <!-- Carga de módulos JavaScript -->
+  
+  <!-- Modal para formularios -->
+  <div id="modalFormulario" class="modal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
   <script type="module" src="firebase-init.js"></script>
   <script type="module" src="auth.js"></script>
   <script type="module" src="jugadores.js"></script>
@@ -40,5 +200,6 @@ Cuerda Incluida debe ser "Sí" o "No". Fechas como dd/mm/aaaa.
   <script type="module" src="estadisticas.js"></script>
   <script type="module" src="utilidades.js"></script>
   <script type="module" src="main.js"></script>
+  <script type="module" src="ui.js"></script>
 </body>
 </html>
