@@ -1,44 +1,44 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Gestor de Encordados</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>Gestor de Encordados</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-  <main role="main">
-    <h1>Gestor de Encordados</h1>
-    <p>Bienvenido. User ID: <span id="userIdDisplay">Cargando...</span></p>
+  <main role="main">
+    <h1>Gestor de Encordados</h1>
+    <p>Bienvenido. User ID: <span id="userIdDisplay">Cargando...</span></p>
 
-    <section>
-      <h2>Formato CSV esperado para importar:</h2>
-      <pre>
+    <section>
+      <h2>Formato CSV esperado para importar:</h2>
+      <pre>
 Encabezados: Código Jugador,Nombre Jugador,Marca Raqueta,Modelo Raqueta,Tensión Vertical,Tensión Horizontal,Tipo Cuerda,Cuerda Incluida,Fecha Solicitud,Fecha Entrega Estimada,Precio,Estado Pago,Estado Entrega,Notas,Fecha Pago
 Cuerda Incluida debe ser "Sí" o "No". Fechas como dd/mm/aaaa.
-      </pre>
-    </section>
+      </pre>
+    </section>
 
-    <section id="estadisticas">
-      <h2>Estadísticas</h2>
-      <ul>
-        <li>Total solicitudes: <span id="statTotalSolicitudes">0</span></li>
-        <li>Ingresos totales: <span id="statIngresosTotales">0.00 €</span></li>
-        <li>Precio promedio: <span id="statPrecioPromedio">0.00 €</span></li>
-        <li>Solicitudes hoy: <span id="statSolicitudesHoy">0</span></li>
-        <li>Ingresos últimos 30 días: <span id="statIngresos30Dias">0.00 €</span></li>
-        <li>Promedio diario: <span id="statPromedioDiario">0.00 €</span></li>
-      </ul>
-      <p>Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
-    </section>
-  </main>
+    <section id="estadisticas">
+      <h2>Estadísticas</h2>
+      <ul>
+        <li>Total solicitudes: <span id="statTotalSolicitudes">0</span></li>
+        <li>Ingresos totales: <span id="statIngresosTotales">0.00 €</span></li>
+        <li>Precio promedio: <span id="statPrecioPromedio">0.00 €</span></li>
+        <li>Solicitudes hoy: <span id="statSolicitudesHoy">0</span></li>
+        <li>Ingresos últimos 30 días: <span id="statIngresos30Dias">0.00 €</span></li>
+        <li>Promedio diario: <span id="statPromedioDiario">0.00 €</span></li>
+      </ul>
+      <p>Las estadísticas se basan en las solicitudes actualmente visibles (afectadas por los filtros de la pestaña "Ver Solicitudes").</p>
+    </section>
+  </main>
 
-  <!-- Carga de módulos JavaScript -->
-  <script type="module" src="auth.js"></script>
-  <script type="module" src="jugadores.js"></script>
-  <script type="module" src="solicitudes.js"></script>
-  <script type="module" src="estadisticas.js"></script>
-  <script type="module" src="utilidades.js"></script>
-  <script type="module" src="main.js"></script>
+  <!-- Carga de módulos JavaScript -->
+  <script type="module" src="firebase-init.js"></script>
+  <script type="module" src="auth.js"></script>
+  <script type="module" src="jugadores.js"></script>
+  <script type="module" src="solicitudes.js"></script>
+  <script type="module" src="estadisticas.js"></script>
+  <script type="module" src="utilidades.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
