@@ -2030,7 +2030,6 @@ function initApplication() {
         };
         fileInput.click();
     });
-});
 // --- INICIO DE LA APLICACIÓN ---
 if (localStorage.getItem('useLegacyVersion') === 'true') {
     console.warn("Cargando versión legacy por solicitud explícita");
