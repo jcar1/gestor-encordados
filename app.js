@@ -122,16 +122,18 @@ function setupInactivityTimer() {
 }
 
 async function logAction(action, details = {}) {
-    if (!userId) return;
-    
     try {
-        await setDoc(doc(db, `users/${userId}/private/auditoria`), {
-            action,
-            details: JSON.stringify(details),
-            timestamp: Timestamp.now(),
-            ip: await getClientIP(),
-            userAgent: navigator.userAgent
-        }, { merge: true });
+        await setDoc(
+            doc(db, `users/${userId}/private/auditoria`), 
+            {
+                action,
+                details: JSON.stringify(details),
+                timestamp: Timestamp.now(),
+                ip: await getClientIP(),
+                userAgent: navigator.userAgent
+            }, 
+            { merge: true }
+        ); // ← Paréntesis correctamente cerrados
     } catch (error) {
         console.error("Error registrando acción:", error);
     }
