@@ -21,6 +21,20 @@ export async function iniciarSesion(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential.user;
   } catch (error) {
+    console.error("Error de login:", error);
+    throw error; // Esto será capturado en el formulario
+  }
+}
+
+if (!auth.currentUser && !window.location.pathname.includes("login.html")) {
+  window.location.href = "login.html";
+}
+
+  try {
+    await setPersistence(auth, browserLocalPersistence); // ← ¡Asegúrate de que esto esté!
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
     console.error("Error al iniciar sesión:", error);
     
     let mensajeError = "Error al iniciar sesión";
@@ -60,16 +74,16 @@ export async function cerrarSesion() {
 }
 
 // Observar cambios de autenticación
+
 export function observarAutenticacion(callback) {
   return onAuthStateChanged(auth, (user) => {
-    try {
-      callback(user);
-    } catch (error) {
-      console.error("Error en callback de autenticación:", error);
+    if (user) {
+      console.log("Usuario autenticado:", user.uid);
+      callback(user); // Envía el usuario autenticado
+    } else {
+      console.log("No autenticado");
+      callback(null); // Envía null para manejar el estado
     }
-  }, (error) => {
-    console.error("Error en observador de autenticación:", error);
-    mostrarError("Error en el sistema de autenticación");
   });
 }
 

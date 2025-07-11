@@ -102,11 +102,26 @@ async function cargarDatosIniciales() {
 document.addEventListener("DOMContentLoaded", () => {
   observarAutenticacion(async (user) => {
     if (user) {
+      // Usuario autenticado
       estadoApp.usuario = user;
+      elementosUI.userIdDisplay.textContent = user.uid; // Muestra el ID real
       await cargarDatosIniciales();
+      
+      // Debug (opcional)
+      if (window.location.hash === '#debug') {
+        console.log("Usuario autenticado:", user);
+        window.app = { estado: estadoApp, ui: elementosUI }; // Solo en debug
+      }
     } else {
+      // Usuario NO autenticado
       estadoApp.usuario = null;
+      elementosUI.userIdDisplay.textContent = "No autenticado";
       actualizarUI();
+      
+      // Redirige a login si no está en esa página
+      if (!window.location.pathname.includes("login.html")) {
+        window.location.href = "login.html";
+      }
     }
   });
 });

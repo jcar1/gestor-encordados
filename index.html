@@ -23,7 +23,16 @@
   <div id="loadingIndicator" class="loading-indicator" style="display: none;">
     <div class="loading-spinner"></div>
     <p>Cargando...</p>
+	
+
+<script type="module">
+  import { cerrarSesion } from './auth.js';
+  window.cerrarSesion = cerrarSesion;
+</script>
+	
   </div>
+<button onclick="cerrarSesion()" class="btn btn-logout">Salir</button>
+  
   <div id="errorContainer" class="error-message" style="display: none;"></div>
      
   <main role="main">
