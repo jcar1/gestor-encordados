@@ -9,6 +9,12 @@ const firebaseConfig = {
     measurementId: "G-VJG0HVKMZV"
 };
 
+// Credenciales fijas
+const FIXED_CREDENTIALS = {
+    email: "jcsueca@gmail.com",
+    password: "A123456!"
+};
+
 // Importaciones de Firebase
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
@@ -16,7 +22,6 @@ import {
     signInWithEmailAndPassword,
     setPersistence,
     browserLocalPersistence,
-    signOut,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
@@ -35,15 +40,13 @@ import {
     writeBatch,
     addDoc,
     onSnapshot,
-    initializeFirestore,
-    arrayUnion
+    initializeFirestore
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // Configuración mejorada de Firestore
 const firestoreSettings = {
     experimentalForceLongPolling: true,
-    merge: true,
-    ignoreUndefinedProperties: true
+    merge: true
 };
 
 // Inicialización de Firebase
@@ -51,15 +54,11 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = initializeFirestore(app, firestoreSettings);
 
-// Variables globales
+// Referencias a colecciones
 let jugadoresCollectionRef;
 let solicitudesCollectionRef;
 let userId = null;
 let isAuthReady = false;
-let userRole = 'user';
-let lastLoginDate = null;
-let loginHistory = [];
-const ADMIN_EMAILS = ['jcsueca@gmail.com']; // Reemplaza con tus emails admin
 
 // Variables para gráficos
 let pagoChart = null;
@@ -76,130 +75,82 @@ let unsubscribeJugadoresLista = null;
 let currentSolicitudesData = [];
 let jugadoresData = [];
 
-// --- FUNCIONES DE SEGURIDAD MEJORADAS ---
-async function getClientIP() {
+// Función de autenticación mejorada
+async function authenticateUser() {
     try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        return data.ip || 'unknown';
+        await setPersistence(auth, browserLocalPersistence);
+        const userCredential = await signInWithEmailAndPassword(
+            auth, 
+            FIXED_CREDENTIALS.email, 
+            FIXED_CREDENTIALS.password
+        );
+        return userCredential.user;
     } catch (error) {
-        console.error("Error obteniendo IP:", error);
-        return 'unknown';
+        console.error("Error de autenticación:", error);
+        
+        // Reintento después de 2 segundos
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            const userCredential = await signInWithEmailAndPassword(
+                auth, 
+                FIXED_CREDENTIALS.email, 
+                FIXED_CREDENTIALS.password
+            );
+            return userCredential.user;
+        } catch (retryError) {
+            console.error("Error en reintento de autenticación:", retryError);
+            showModalMessage("Error de conexión. La aplicación funciona en modo offline.", "warning");
+            return null;
+        }
     }
 }
 
-function sanitizeInput(input) {
-    if (typeof input !== 'string') return input;
-    return input.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function checkPermissions(requiredRole = 'user') {
-    if (!isAuthReady) return false;
-    if (requiredRole === 'admin' && userRole !== 'admin') {
-        showModalMessage("Acceso denegado: se requieren privilegios de administrador", "error");
-        return false;
-    }
-    return true;
-}
-
-let inactivityTimer;
-function setupInactivityTimer() {
-    const inactivityTimeout = 30 * 60 * 1000; // 30 minutos
-    
-    const resetTimer = () => {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => {
-            signOut(auth);
-            showModalMessage("Sesión cerrada por inactividad", "warning");
-        }, inactivityTimeout);
-    };
-    
-    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
-        document.addEventListener(event, resetTimer, false);
-    });
-    
-    resetTimer();
-}
-
-async function logAction(action, details = {}) {
+// Función principal de inicialización
+async function initApplication() {
     try {
-        await setDoc(
-            doc(db, `users/${userId}/private/auditoria`), 
-            {
-                action,
-                details: JSON.stringify(details),
-                timestamp: Timestamp.now(),
-                ip: await getClientIP(),
-                userAgent: navigator.userAgent
-            }, 
-            { merge: true }
-        ); // ← Paréntesis correctamente cerrados
+        const user = await authenticateUser();
+        if (user) {
+            userId = user.uid;
+            document.getElementById('userIdDisplay').textContent = userId;
+            
+            // Configurar referencias a la base de datos
+            jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
+            solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
+            
+            isAuthReady = true;
+            
+            try {
+                await loadInitialData();
+                showTab('nuevaSolicitudTab');
+            } catch (loadError) {
+                console.error("Error cargando datos iniciales:", loadError);
+                showModalMessage("Error al cargar datos iniciales", "error");
+            }
+        }
     } catch (error) {
-        console.error("Error registrando acción:", error);
+        console.error("Error inicializando la aplicación:", error);
+        document.getElementById('userIdDisplay').textContent = "Error de conexión";
+        showModalMessage("Error al iniciar la aplicación: " + (error.message || error), "error");
     }
 }
 
-// --- MECANISMO DE REVERSIÓN ---
-function setupRollbackButton() {
-    if (document.getElementById('rollbackBtn')) return;
-    
-    const rollbackBtn = document.createElement('button');
-    rollbackBtn.id = 'rollbackBtn';
-    rollbackBtn.className = 'fixed bottom-4 left-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg shadow-lg z-50';
-    rollbackBtn.innerHTML = '<i class="fas fa-undo mr-2"></i>Restaurar Versión Anterior';
-    rollbackBtn.onclick = () => {
-        showConfirmModal("¿Restaurar versión anterior? Se perderán las mejoras de seguridad.", () => {
-            localStorage.setItem('useLegacyVersion', 'true');
-            window.location.reload();
-        });
-    };
-    document.body.appendChild(rollbackBtn);
-    
-    rollbackBtn.style.display = userRole === 'admin' ? 'block' : 'none';
-}
-
-// --- OBSERVADOR DE AUTENTICACIÓN ACTUALIZADO ---
-onAuthStateChanged(auth, async (user) => {
+// Observador de estado de autenticación
+onAuthStateChanged(auth, (user) => {
     if (user) {
         userId = user.uid;
         document.getElementById('userIdDisplay').textContent = userId;
-        document.getElementById('loginContainer').style.display = 'none';
-        document.querySelector('.container').style.display = '';
-        document.getElementById('logoutBtn').style.display = '';
+        console.log("Usuario autenticado con ID:", userId);
         
-        // Verificar rol de usuario
-        userRole = ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user';
-        
-        // Registrar acceso
-        const loginTime = new Date();
-        lastLoginDate = loginTime;
-        const ip = await getClientIP();
-        loginHistory.push({ date: loginTime, ip });
-        
-        try {
-            await setDoc(doc(db, `users/${userId}/private/accesos`), {
-                lastLogin: Timestamp.fromDate(loginTime),
-                loginHistory: arrayUnion({ date: Timestamp.now(), ip }),
-                role: userRole,
-                email: user.email
-            }, { merge: true });
-        } catch (error) {
-            console.error("Error registrando acceso:", error);
-        }
-
         if (!isAuthReady) {
             jugadoresCollectionRef = collection(db, `users/${userId}/jugadores`);
             solicitudesCollectionRef = collection(db, `users/${userId}/solicitudes`);
             isAuthReady = true;
-            initApplication();
+            loadInitialData();
         }
     } else {
-        userRole = 'user';
-        lastLoginDate = null;
-        document.getElementById('loginContainer').style.display = '';
-        document.querySelector('.container').style.display = 'none';
-        document.getElementById('logoutBtn').style.display = 'none';
-        isAuthReady = false;
+        console.log("Usuario no autenticado");
+        document.getElementById('userIdDisplay').textContent = "No autenticado";
+        authenticateUser();
     }
 });
 
@@ -357,110 +308,7 @@ document.getElementById('solicitudCuerdaIncluida').addEventListener('change', ()
 document.getElementById('editSolicitudCuerdaIncluida').addEventListener('change', () => actualizarPrecioSugerido('editSolicitud'));
 
 // --- AUTOCOMPLETADO DE JUGADORES ---
-// [El código anterior permanece igual hasta la función setupAutocomplete]
-
-// --- AUTOCOMPLETADO DE JUGADORES MEJORADO ---
 function setupAutocomplete() {
-    const input = document.getElementById('solicitudJugadorNombre');
-    const hiddenInput = document.getElementById('solicitudJugadorId');
-    const autocompleteContainer = document.createElement('div');
-    autocompleteContainer.className = 'autocomplete-items absolute z-10 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto w-full';
-    input.parentNode.appendChild(autocompleteContainer);
-
-    input.addEventListener('input', function() {
-        const val = this.value.trim().toLowerCase();
-        autocompleteContainer.innerHTML = '';
-        
-        if (val.length < 2) {
-            hiddenInput.value = '';
-            // Limpiar campos de raqueta si no hay jugador seleccionado
-            document.getElementById('solicitudMarcaRaqueta').value = '';
-            document.getElementById('solicitudModeloRaqueta').value = '';
-            document.getElementById('solicitudTensionVertical').value = '';
-            document.getElementById('solicitudTensionHorizontal').value = '';
-            document.getElementById('solicitudTipoCuerda').value = '';
-            return;
-        }
-
-        const matches = jugadoresData.filter(jugador => 
-            jugador.nombreCompleto.toLowerCase().includes(val) || 
-            jugador.codigo.toString().includes(val)
-        ).slice(0, 10); // Mostrar hasta 10 resultados
-
-        if (matches.length === 0) {
-            const noResults = document.createElement('div');
-            noResults.className = 'px-4 py-2 text-gray-500';
-            noResults.textContent = 'No se encontraron jugadores';
-            autocompleteContainer.appendChild(noResults);
-            return;
-        }
-
-        matches.forEach(jugador => {
-            const item = document.createElement('div');
-            item.className = 'px-4 py-2 hover:bg-gray-100 cursor-pointer';
-            item.innerHTML = `
-                <div class="font-semibold">${jugador.nombreCompleto}</div>
-                <div class="text-sm text-gray-600">
-                    <span class="font-medium">Código:</span> ${jugador.codigo}
-                    ${jugador.marcaRaqueta ? `<span class="ml-2"><span class="font-medium">Raqueta:</span> ${jugador.marcaRaqueta} ${jugador.modeloRaqueta || ''}</span>` : ''}
-                </div>
-            `;
-            
-            item.addEventListener('click', function() {
-                input.value = jugador.nombreCompleto;
-                hiddenInput.value = jugador.id;
-                autocompleteContainer.innerHTML = '';
-                
-                // Autocompletar datos de raqueta del jugador
-                document.getElementById('solicitudMarcaRaqueta').value = jugador.marcaRaqueta || '';
-                document.getElementById('solicitudModeloRaqueta').value = jugador.modeloRaqueta || '';
-                document.getElementById('solicitudTensionVertical').value = jugador.tensionVertical || '';
-                document.getElementById('solicitudTensionHorizontal').value = jugador.tensionHorizontal || '';
-                document.getElementById('solicitudTipoCuerda').value = jugador.tipoCuerda || '';
-            });
-            
-            autocompleteContainer.appendChild(item);
-        });
-    });
-
-    // Cerrar autocompletado al hacer clic fuera
-    document.addEventListener('click', function(e) {
-        if (e.target !== input) {
-            autocompleteContainer.innerHTML = '';
-        }
-    });
-
-    // Manejar teclado (flechas arriba/abajo y enter)
-    input.addEventListener('keydown', function(e) {
-        const items = autocompleteContainer.querySelectorAll('div');
-        let currentFocus = -1;
-        
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            currentFocus = Math.min(currentFocus + 1, items.length - 1);
-            setActive(items, currentFocus);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            currentFocus = Math.max(currentFocus - 1, -1);
-            setActive(items, currentFocus);
-        } else if (e.key === 'Enter' && currentFocus > -1) {
-            e.preventDefault();
-            items[currentFocus].click();
-        }
-    });
-
-    function setActive(items, index) {
-        items.forEach(item => item.classList.remove('bg-blue-50'));
-        if (index >= 0 && index < items.length) {
-            items[index].classList.add('bg-blue-50');
-            items[index].scrollIntoView({ block: 'nearest' });
-        }
-    }
-}
-
-// [El resto del código permanece igual]
-
-
     const input = document.getElementById('solicitudJugadorNombre');
     const hiddenInput = document.getElementById('solicitudJugadorId');
     const autocompleteContainer = document.createElement('div');
@@ -512,6 +360,7 @@ function setupAutocomplete() {
             autocompleteContainer.innerHTML = '';
         }
     });
+}
 
 // --- GESTIÓN DE JUGADORES ---
 function loadJugadoresParaDropdown() {
@@ -640,9 +489,8 @@ function loadJugadoresParaLista() {
             listaJugadoresBody.innerHTML = '';
             
             snapshot.forEach(docSnap => {
-               
-                const jugador = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
-                jugadoresData.push(jugador);                            
+                const jugador = { id: docSnap.id, ...docSnap.data() };
+                jugadoresData.push(jugador);
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors duration-150";
                 
@@ -684,33 +532,25 @@ function loadJugadoresParaLista() {
 
 window.openEditJugadorModal = async (jugadorId) => {
     if (!isAuthReady) return;
-
+    
     try {
-        let jugadorDocRef;
-        // Busca el jugador en jugadoresData
-        const jugador = jugadoresData.find(j => j.id === jugadorId);
-        if (userRole === 'admin' && jugador && jugador.refPath) {
-            jugadorDocRef = doc(db, jugador.refPath);
-        } else {
-            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-        }
-
+        const jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
         const docSnap = await getDoc(jugadorDocRef);
-
+        
         if (docSnap.exists()) {
-            const jugadorData = docSnap.data();
-
+            const jugador = docSnap.data();
+            
             formEditJugador.editJugadorId.value = jugadorId;
-            formEditJugador.editJugadorCodigo.value = jugadorData.codigo;
-            formEditJugador.editJugadorNombreCompleto.value = jugadorData.nombreCompleto;
-            formEditJugador.editJugadorTelefono.value = jugadorData.telefono || '';
-            formEditJugador.editJugadorEmail.value = jugadorData.email || '';
-            formEditJugador.editJugadorMarcaRaqueta.value = jugadorData.marcaRaqueta || '';
-            formEditJugador.editJugadorModeloRaqueta.value = jugadorData.modeloRaqueta || '';
-            formEditJugador.editJugadorTensionVertical.value = jugadorData.tensionVertical || '';
-            formEditJugador.editJugadorTensionHorizontal.value = jugadorData.tensionHorizontal || '';
-            formEditJugador.editJugadorTipoCuerda.value = jugadorData.tipoCuerda || '';
-
+            formEditJugador.editJugadorCodigo.value = jugador.codigo;
+            formEditJugador.editJugadorNombreCompleto.value = jugador.nombreCompleto;
+            formEditJugador.editJugadorTelefono.value = jugador.telefono || '';
+            formEditJugador.editJugadorEmail.value = jugador.email || '';
+            formEditJugador.editJugadorMarcaRaqueta.value = jugador.marcaRaqueta || '';
+            formEditJugador.editJugadorModeloRaqueta.value = jugador.modeloRaqueta || '';
+            formEditJugador.editJugadorTensionVertical.value = jugador.tensionVertical || '';
+            formEditJugador.editJugadorTensionHorizontal.value = jugador.tensionHorizontal || '';
+            formEditJugador.editJugadorTipoCuerda.value = jugador.tipoCuerda || '';
+            
             editJugadorModal.style.display = 'flex';
         } else {
             showModalMessage("Jugador no encontrado.", "error");
@@ -754,12 +594,6 @@ formEditJugador.addEventListener('submit', async (e) => {
         return;
     }
 
-    // Verificar que el código sea un número
-    if (isNaN(parseInt(codigo))) {
-        showError('editCodigo', "El código debe ser un número");
-        return;
-    }
-
     // Verificar si el nombre ya existe (excluyendo el jugador actual)
     const nombreExists = jugadoresData.some(j => j.nombreCompleto.toLowerCase() === nombreCompleto.toLowerCase() && j.id !== jugadorId);
     if (nombreExists) {
@@ -768,14 +602,8 @@ formEditJugador.addEventListener('submit', async (e) => {
     }
 
     try {
+        const jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
         
-        let jugadorDocRef;
-        const jugador = jugadoresData.find(j => j.id === jugadorId);
-        if (userRole === 'admin' && jugador && jugador.refPath) {
-            jugadorDocRef = doc(db, jugador.refPath);
-        } else {
-            jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-}
         await updateDoc(jugadorDocRef, {
             codigo,
             nombreCompleto,
@@ -815,16 +643,7 @@ window.confirmDeleteJugador = (jugadorId, nombreJugador) => {
                     return;
                 }
                 
-                
-                let jugadorDocRef;
-                const jugador = jugadoresData.find(j => j.id === jugadorId);
-                if (userRole === 'admin' && jugador && jugador.refPath) {
-                    jugadorDocRef = doc(db, jugador.refPath);
-                } else {
-                    jugadorDocRef = doc(jugadoresCollectionRef, jugadorId);
-            }
-                await deleteDoc(jugadorDocRef);
-
+                await deleteDoc(doc(jugadoresCollectionRef, jugadorId));
                 showModalMessage(`Jugador "${nombreDecodificado}" eliminado correctamente.`, "success");
                 loadJugadoresParaFiltros(); // Actualizar filtros después de eliminar
             } catch (error) {
@@ -992,7 +811,7 @@ function loadSolicitudes() {
             listaSolicitudesBody.innerHTML = '';
             
             snapshot.forEach(docSnap => {
-                const solicitud = { id: docSnap.id, ...docSnap.data(), refPath: docSnap.ref.path };
+                const solicitud = { id: docSnap.id, ...docSnap.data() };
                 currentSolicitudesData.push(solicitud);
                 
                 const tr = document.createElement('tr');
@@ -1103,13 +922,7 @@ window.openEditSolicitudModal = async (solicitudId) => {
     if (!isAuthReady) return;
     
     try {
-        let solicitudDocRef;
-        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-        if (userRole === 'admin' && solicitud && solicitud.refPath) {
-          solicitudDocRef = doc(db, solicitud.refPath);
-        } else {
-            solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-        }
+        const solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
         const docSnap = await getDoc(solicitudDocRef);
         
         if (docSnap.exists()) {
@@ -1219,13 +1032,7 @@ formEditSolicitud.addEventListener('submit', async (e) => {
     }
 
     try {
-        let solicitudDocRef;
-        const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-        if (userRole === 'admin' && solicitud && solicitud.refPath) {
-          solicitudDocRef = doc(db, solicitud.refPath);
-        } else {
-           solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-    }
+        const solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
         
         await updateDoc(solicitudDocRef, {
             ...formData,
@@ -1249,15 +1056,7 @@ window.confirmDeleteSolicitud = (solicitudId) => {
             if (!isAuthReady) return;
             
             try {
-                let solicitudDocRef;
-                const solicitud = currentSolicitudesData.find(s => s.id === solicitudId);
-                if (userRole === 'admin' && solicitud && solicitud.refPath) {
-                     solicitudDocRef = doc(db, solicitud.refPath);
-                } else {
-                    solicitudDocRef = doc(solicitudesCollectionRef, solicitudId);
-            }
-                await deleteDoc(solicitudDocRef);
-                    
+                await deleteDoc(doc(solicitudesCollectionRef, solicitudId));
                 showModalMessage("Solicitud eliminada correctamente.", "success");
             } catch (error) {
                 showModalMessage(`Error al eliminar solicitud: ${error.message}`, "error");
@@ -1291,15 +1090,9 @@ document.getElementById('btnDeleteSelected').addEventListener('click', function(
                 const batch = writeBatch(db);
                 
                 selectedIds.forEach(id => {
-                const solicitud = currentSolicitudesData.find(s => s.id === id);
-                let docRef;
-                if (userRole === 'admin' && solicitud && solicitud.refPath) {
-                    docRef = doc(db, solicitud.refPath);
-                } else {
-                    docRef = doc(solicitudesCollectionRef, id);
-                }
+                    const docRef = doc(solicitudesCollectionRef, id);
                     batch.delete(docRef);
-            });
+                });
                 
                 await batch.commit();
                 showModalMessage(`${selectedIds.length} solicitudes eliminadas correctamente.`, "success");
@@ -1825,219 +1618,149 @@ async function loadInitialData() {
     }
 }
 
-// --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
-async function importarCSV(csvText, type = 'solicitudes') {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(/[,;]/).map(h => h.trim());
-    
-    try {
-        if (type === 'jugadores') {
-            // Import players
-            const batch = writeBatch(db);
-            const jugadoresToImport = [];
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '') continue;
-                
-                const values = lines[i].split(/[,;]/).map(v => v.trim());
-                
-                // Parsear datos del jugador según el formato del CSV
-                const jugadorData = {
-                    codigo: values[0] ? parseInt(values[0]) : null,
-                    nombreCompleto: values[1] || '',
-                    marcaRaqueta: values[2] || '',
-                    modeloRaqueta: values[3] || '',
-                    tensionVertical: values[4] ? parseFloat(values[4]) : null,
-                    tensionHorizontal: values[5] ? parseFloat(values[5]) : null,
-                    tipoCuerda: values[6] || '',
-                    cuerdaIncluida: values[7] ? values[7].toLowerCase() === 'sí' || values[7].toLowerCase() === 'si' : false,
-                    fechaRegistro: Timestamp.now(),
-                    fechaUltimaActualizacion: Timestamp.now()
-                };
-                
-                if (!jugadorData.codigo || !jugadorData.nombreCompleto) continue;
-                
-                // Verificar si el jugador ya existe
-                const existingQuery = query(jugadoresCollectionRef, where("codigo", "==", jugadorData.codigo));
-                const existingSnapshot = await getDocs(existingQuery);
-                
-                if (!existingSnapshot.empty) {
-                    // Actualizar jugador existente
-                    const existingDoc = existingSnapshot.docs[0];
-                    await updateDoc(existingDoc.ref, {
-                        nombreCompleto: jugadorData.nombreCompleto,
-                        marcaRaqueta: jugadorData.marcaRaqueta,
-                        modeloRaqueta: jugadorData.modeloRaqueta,
-                        tensionVertical: jugadorData.tensionVertical,
-                        tensionHorizontal: jugadorData.tensionHorizontal,
-                        tipoCuerda: jugadorData.tipoCuerda,
-                        cuerdaIncluida: jugadorData.cuerdaIncluida,
-                        fechaUltimaActualizacion: Timestamp.now()
-                    });
-                } else {
-                    // Crear nuevo jugador
-                    const newDocRef = doc(jugadoresCollectionRef);
-                    batch.set(newDocRef, jugadorData);
-                }
-                
-                jugadoresToImport.push(jugadorData);
-            }
-            
-            await batch.commit();
-            showModalMessage(`${jugadoresToImport.length} jugadores importados/actualizados correctamente`, 'success');
-            loadJugadoresParaDropdown();
-            loadJugadoresParaFiltros();
-            loadJugadoresParaLista();
-            
-        } else if (type === 'solicitudes') {
-            // Import stringing requests
-            const batch = writeBatch(db);
-            const solicitudesToImport = [];
-            const jugadoresMap = {};
-            
-            // First get all players to map codes to IDs
-            const jugadoresSnapshot = await getDocs(jugadoresCollectionRef);
-            jugadoresSnapshot.forEach(doc => {
-                jugadoresMap[doc.data().codigo] = doc.id;
-            });
-            
-            for (let i = 1; i < lines.length; i++) {
-                if (lines[i].trim() === '') continue;
-                
-                const values = lines[i].split(/[,;]/).map(v => v.trim());
-                if (values.length < headers.length) continue;
-                
-                const [
-                    codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
-                    tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
-                    fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
-                    estadoEntrega, notas, fechaPago
-                ] = values;
-                
-                const jugadorId = jugadoresMap[codigoJugador];
-                if (!jugadorId) {
-                    console.warn(`Jugador con código ${codigoJugador} no encontrado`);
-                    continue;
-                }
-                
-                // Parse dates (dd/mm/yyyy format)
-                const parseDate = (dateStr) => {
-                    if (!dateStr || dateStr === '') return null;
-                    const [day, month, year] = dateStr.split('/');
-                    return new Date(year, month - 1, day);
-                };
-                
-                const solicitudData = {
-                    jugadorId,
-                    nombreJugador,
-                    marcaRaqueta: marcaRaqueta || '',
-                    modeloRaqueta: modeloRaqueta || '',
-                    tensionVertical: parseFloat(tensionVertical) || 0,
-                    tensionHorizontal: parseFloat(tensionHorizontal) || 0,
-                    tipoCuerda: tipoCuerda || '',
-                    cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí' || cuerdaIncluida.toLowerCase() === 'si',
-                    fechaSolicitud: Timestamp.fromDate(parseDate(fechaSolicitud)),
-                    fechaEntregaEstimada: fechaEntregaEstimada ? Timestamp.fromDate(parseDate(fechaEntregaEstimada)) : null,
-                    precio: parseFloat(precio) || 0,
-                    estadoPago: estadoPago || 'Pendiente',
-                    estadoEntrega: estadoEntrega || 'Pendiente',
-                    notas: notas || '',
-                    fechaPago: fechaPago ? Timestamp.fromDate(parseDate(fechaPago)) : null,
-                    fechaCreacion: Timestamp.now(),
-                    fechaUltimaActualizacion: Timestamp.now()
-                };
-                
-                const newDocRef = doc(solicitudesCollectionRef);
-                batch.set(newDocRef, solicitudData);
-                solicitudesToImport.push(solicitudData);
-            }
-            
-            await batch.commit();
-            showModalMessage(`${solicitudesToImport.length} solicitudes importadas correctamente`, 'success');
-            loadSolicitudes();
-        }
-    } catch (error) {
-        console.error(`Error importing ${type}:`, error);
-        showModalMessage(`Error al importar ${type}: ${error.message}`, 'error');
-    }
-}
-
 // Iniciar la aplicación cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    initApplication();
+});
 
+document.getElementById('btnImportCsv').addEventListener('click', () => {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        showModalMessage("Seleccione un archivo CSV para importar.", "warning");
+        return;
+    }
 
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const csvText = e.target.result;
+        importarCSV(csvText);
+    };
+    reader.readAsText(file);
+});
 
+// --- MEJORA EN IMPORTACIÓN CSV CON CREACIÓN DE JUGADORES AUTOMÁTICA ---
 
+async function importarCSV(csvText) {
+    const lines = csvText.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const expectedHeaders = [
+        "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
+        "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
+        "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
+        "Estado Entrega", "Notas", "Fecha Pago"
+    ];
 
-// --- FUNCIÓN DE INICIALIZACIÓN ---
-function initApplication() {
-    loadInitialData();
-    setupInactivityTimer();
-    setupRollbackButton();
-    
-    // Verificar si es la primera carga
-    
-    if (!localStorage.getItem('appInitialized')) {
-        showModalMessage("Bienvenido a la versión mejorada con controles de seguridad", "info");
-        localStorage.setItem('appInitialized', 'true');
+    if (headers.join(',') !== expectedHeaders.join(',')) {
+        showModalMessage("Error: El encabezado del CSV no coincide con el formato esperado.", "error");
+        return;
+    }
+
+    const nuevasSolicitudes = [];
+    const errores = [];
+    const jugadoresNuevos = new Map();
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length !== expectedHeaders.length) {
+            errores.push(`Línea ${i + 1}: Número de columnas incorrecto.`);
+            continue;
+        }
+
+        const [
+            codigoJugador, nombreJugador, marcaRaqueta, modeloRaqueta,
+            tensionVertical, tensionHorizontal, tipoCuerda, cuerdaIncluida,
+            fechaSolicitud, fechaEntregaEstimada, precio, estadoPago,
+            estadoEntrega, notas, fechaPago
+        ] = values;
+
+        let jugador = jugadoresData.find(j => j.codigo.toString() === codigoJugador);
+
+        if (!jugador && !jugadoresNuevos.has(codigoJugador)) {
+            const nuevoDocRef = doc(collection(db, `users/${userId}/jugadores`));
+            const nuevoJugador = {
+                id: nuevoDocRef.id,
+                codigo: parseInt(codigoJugador),
+                nombreCompleto: nombreJugador,
+                marcaRaqueta,
+                modeloRaqueta,
+                tensionVertical: parseFloat(tensionVertical) || 0,
+                tensionHorizontal: parseFloat(tensionHorizontal) || 0,
+                tipoCuerda: tipoCuerda || "",
+                fechaRegistro: Timestamp.now(),
+                fechaUltimaActualizacion: Timestamp.now()
+            };
+            jugadoresNuevos.set(codigoJugador, nuevoJugador);
+            jugadoresData.push(nuevoJugador);
+            await setDoc(nuevoDocRef, nuevoJugador);
+            jugador = nuevoJugador;
+        } else if (!jugador) {
+            jugador = jugadoresNuevos.get(codigoJugador);
+        }
+
+      
+        if (!marcaRaqueta || isNaN(parseFloat(tensionVertical)) || isNaN(parseFloat(tensionHorizontal)) || !fechaSolicitudDate) {
+            errores.push(`Línea ${i + 1}: Datos obligatorios faltantes o incorrectos.`);
+            continue;
+        }
+
+        nuevasSolicitudes.push({
+            jugadorId: jugador.id,
+            nombreJugador,
+            marcaRaqueta,
+            modeloRaqueta,
+            tensionVertical: parseFloat(tensionVertical),
+            tensionHorizontal: parseFloat(tensionHorizontal),
+            tipoCuerda,
+            cuerdaIncluida: cuerdaIncluida.toLowerCase() === 'sí',
+            fechaSolicitud: Timestamp.fromDate(fechaSolicitudDate),
+            fechaEntregaEstimada: fechaEntregaEstimadaDate ? Timestamp.fromDate(fechaEntregaEstimadaDate) : null,
+            fechaPago: fechaPagoDate ? Timestamp.fromDate(fechaPagoDate) : null,
+            precio: parseFloat(precio) || 0,
+            estadoPago,
+            estadoEntrega: estadoEntrega || "Pendiente",
+            notas,
+            fechaCreacion: Timestamp.now(),
+            fechaUltimaActualizacion: Timestamp.now()
+        });
+    }
+
+    if (errores.length > 0) {
+        showModalMessage(`Errores durante la importación:<br>${errores.join('<br>')}`, 'warning');
+    }
+
+    if (nuevasSolicitudes.length > 0) {
+        const batch = writeBatch(db);
+        nuevasSolicitudes.forEach(data => {
+            const docRef = doc(collection(db, `users/${userId}/solicitudes`));
+            batch.set(docRef, data);
+        });
+
+        await batch.commit();
+        showModalMessage(`Importación completada: ${nuevasSolicitudes.length} solicitudes agregadas.`, 'success');
+        loadSolicitudes();
     }
 }
 
-// Add buttons for bulk imports
-    const importContainer = document.createElement('div');
-    importContainer.className = 'my-6 p-4 bg-gray-50 rounded-lg shadow';
-    importContainer.innerHTML = `
-        <h3 class="text-lg font-medium text-gray-800 mb-3">Importación Masiva</h3>
-        <div class="flex flex-col sm:flex-row gap-4 items-start">
-            <div>
-                <button id="btnImportJugadoresCSV" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-                    <i class="fas fa-users mr-2"></i>Importar Jugadores CSV
-                </button>
-                <p class="mt-2 text-xs text-gray-500">Formato: Código,Nombre,Marca,Modelo,Tensión V,Tensión H,Tipo Cuerda,Cuerda Incluida</p>
-            </div>
-            <div>
-                <button id="btnImportSolicitudesCSV" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
-                    <i class="fas fa-file-import mr-2"></i>Importar Solicitudes CSV
-                </button>
-                <p class="mt-2 text-xs text-gray-500">Formato completo como en exportación</p>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('verJugadoresTab').prepend(importContainer);
-    
-    document.getElementById('btnImportJugadoresCSV').addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.csv';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => importarCSV(event.target.result, 'jugadores');
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    });
-    
-    document.getElementById('btnImportSolicitudesCSV').addEventListener('click', () => {
-        const fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.accept = '.csv';
-        fileInput.onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => importarCSV(event.target.result, 'solicitudes');
-            reader.readAsText(file);
-        };
-        fileInput.click();
-    });
-// --- INICIO DE LA APLICACIÓN ---
-if (localStorage.getItem('useLegacyVersion') === 'true') {
-    console.warn("Cargando versión legacy por solicitud explícita");
-    const script = document.createElement('script');
-    script.src = 'app-legacy.js';
-    document.head.appendChild(script);
-} else {
-    document.addEventListener('DOMContentLoaded', () => {
-        initApplication();
-    });
+function parseFechaCSV(fechaStr) {
+    if (!fechaStr) return null;
+    const [dia, mes, anio] = fechaStr.split('/');
+    const date = new Date(`${anio}-${mes}-${dia}`);
+    return isNaN(date) ? null : date;
 }
+
+document.getElementById('btnImportCsv').addEventListener('click', () => {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    if (!file) {
+        showModalMessage("Seleccione un archivo CSV para importar.", "warning");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const csvText = e.target.result;
+        importarCSV(csvText);
+    };
+    reader.readAsText(file);
+});
