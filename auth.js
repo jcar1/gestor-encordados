@@ -1,4 +1,5 @@
-// auth.js - Versión mejorada
+// auth.js - Versión corregida
+import { app } from './firebase-init.js';
 import { 
   getAuth, 
   signInWithEmailAndPassword, 
@@ -11,28 +12,15 @@ import {
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-import { mostrarError } from "./ui-helpers.js"; 
-const auth = getAuth();
+// Inicializar auth con la app de Firebase
+const auth = getAuth(app);
 
 // Iniciar sesión
 export async function iniciarSesion(email, password) {
   try {
     await setPersistence(auth, browserLocalPersistence);
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error) {
-    console.error("Error de login:", error);
-    throw error; // Esto será capturado en el formulario
-  }
-}
-
-if (!auth.currentUser && !window.location.pathname.includes("login.html")) {
-  window.location.href = "login.html";
-}
-
-  try {
-    await setPersistence(auth, browserLocalPersistence); // ← ¡Asegúrate de que esto esté!
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log("Usuario autenticado exitosamente:", userCredential.user.uid);
     return userCredential.user;
   } catch (error) {
     console.error("Error al iniciar sesión:", error);
@@ -54,8 +42,12 @@ if (!auth.currentUser && !window.location.pathname.includes("login.html")) {
       case "auth/too-many-requests":
         mensajeError = "Demasiados intentos. Cuenta temporalmente bloqueada";
         break;
+      case "auth/invalid-credential":
+        mensajeError = "Credenciales inválidas";
+        break;
     }
     
+    // Mostrar error en UI
     mostrarError(mensajeError);
     throw error;
   }
@@ -65,6 +57,9 @@ if (!auth.currentUser && !window.location.pathname.includes("login.html")) {
 export async function cerrarSesion() {
   try {
     await signOut(auth);
+    console.log("Sesión cerrada exitosamente");
+    // Redirigir a login
+    window.location.href = "login.html";
     return true;
   } catch (error) {
     console.error("Error al cerrar sesión:", error);
@@ -74,15 +69,14 @@ export async function cerrarSesion() {
 }
 
 // Observar cambios de autenticación
-
 export function observarAutenticacion(callback) {
   return onAuthStateChanged(auth, (user) => {
     if (user) {
       console.log("Usuario autenticado:", user.uid);
-      callback(user); // Envía el usuario autenticado
+      callback(user);
     } else {
-      console.log("No autenticado");
-      callback(null); // Envía null para manejar el estado
+      console.log("No hay usuario autenticado");
+      callback(null);
     }
   });
 }
@@ -99,6 +93,7 @@ export async function registrarUsuario(email, password, nombre) {
       });
     }
     
+    console.log("Usuario registrado exitosamente:", userCredential.user.uid);
     return userCredential.user;
   } catch (error) {
     console.error("Error al registrar usuario:", error);
@@ -125,6 +120,7 @@ export async function registrarUsuario(email, password, nombre) {
 export async function restablecerPassword(email) {
   try {
     await sendPasswordResetEmail(auth, email);
+    console.log("Email de restablecimiento enviado");
     return true;
   } catch (error) {
     console.error("Error al restablecer contraseña:", error);
@@ -138,3 +134,28 @@ export async function restablecerPassword(email) {
     throw error;
   }
 }
+
+// Obtener usuario actual
+export function obtenerUsuarioActual() {
+  return auth.currentUser;
+}
+
+// Función auxiliar para mostrar errores
+function mostrarError(mensaje) {
+  const errorContainer = document.getElementById('errorContainer');
+  if (errorContainer) {
+    errorContainer.textContent = mensaje;
+    errorContainer.style.display = 'block';
+    
+    // Ocultar después de 5 segundos
+    setTimeout(() => {
+      errorContainer.style.display = 'none';
+    }, 5000);
+  } else {
+    console.error("Error:", mensaje);
+    alert(mensaje); // Fallback si no hay contenedor de errores
+  }
+}
+
+// Exportar auth para uso en otros módulos
+export { auth };

@@ -6,32 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-	  
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-	<script type="module" src="ui-helpers.js"></script>           <!-- Helpers -->
-  <script type="module" src="firebase-init.js"></script>        <!-- Firebase -->
-  <script type="module" src="auth.js"></script>                 <!-- Autenticación -->
-  <script type="module" src="jugadores.js"></script>            <!-- Modelos -->
-  <script type="module" src="solicitudes.js"></script>
-  <script type="module" src="estadisticas.js"></script>
-  <script type="module" src="utilidades.js"></script>
-  <script type="module" src="main.js"></script>                 <!-- Lógica principal -->
-  <script type="module" src="ui.js"></script>                   <!-- UI (el último) -->
-	
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div id="loadingIndicator" class="loading-indicator" style="display: none;">
     <div class="loading-spinner"></div>
     <p>Cargando...</p>
-	
-
-<script type="module">
-  import { cerrarSesion } from './auth.js';
-  window.cerrarSesion = cerrarSesion;
-</script>
-	
   </div>
-<button onclick="cerrarSesion()" class="btn btn-logout">Salir</button>
   
   <div id="errorContainer" class="error-message" style="display: none;"></div>
      
@@ -211,8 +192,9 @@ Cuerda Incluida debe ser "Sí" o "No". Fechas como dd/mm/aaaa.
     </div>
   </div>
   
-  <!-- Scripts -->
+  <!-- Scripts cargados en orden correcto -->
   <script type="module" src="firebase-init.js"></script>
+  <script type="module" src="ui-helpers.js"></script>
   <script type="module" src="auth.js"></script>
   <script type="module" src="jugadores.js"></script>
   <script type="module" src="solicitudes.js"></script>
@@ -220,5 +202,14 @@ Cuerda Incluida debe ser "Sí" o "No". Fechas como dd/mm/aaaa.
   <script type="module" src="utilidades.js"></script>
   <script type="module" src="main.js"></script>
   <script type="module" src="ui.js"></script>
+  
+  <script type="module">
+    // Exponer funciones globales necesarias
+    import { cerrarSesion } from './auth.js';
+    window.cerrarSesion = cerrarSesion;
+    
+    // Manejar el botón de logout
+    document.getElementById('logoutBtn').addEventListener('click', cerrarSesion);
+  </script>
 </body>
 </html>
