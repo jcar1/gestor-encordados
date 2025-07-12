@@ -6,151 +6,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <body>
-  <div class="login-wrapper">
-    <div class="login-container">
-      <div class="login-header">
-        <img src="logo.png" alt="Logo Gestor de Encordados" class="login-logo">
-        <h1>Iniciar sesión</h1>
-        <p>Accede a tu cuenta para gestionar encordados</p>
-      </div>
-      
-      <!-- Formulario de Login -->
-      <form id="loginForm" class="login-form">
-        <div class="form-group">
-          <label for="email">Email:</label>
-          <input 
-            type="email" 
-            id="email" 
-            required
-            autocomplete="email"
-            placeholder="usuario@ejemplo.com"
-            aria-describedby="emailHelp"
-          >
-        </div>
-        
-        <div class="form-group">
-          <label for="password">Contraseña:</label>
-          <input 
-            type="password" 
-            id="password" 
-            required
-            autocomplete="current-password"
-            placeholder="••••••••"
-            minlength="6"
-            aria-describedby="passwordHelp"
-          >
-          <div id="passwordHelp" class="form-text">Mínimo 6 caracteres</div>
-        </div>
-        
-        <div class="form-options">
-          <label class="form-check">
-            <input type="checkbox" id="rememberMe">
-            <span>Recordar mi sesión</span>
-          </label>
-        </div>
-        
-        <button type="submit" class="btn btn-primary btn-block">
-          <span class="btn-text">Ingresar</span>
-          <span class="btn-loader" style="display: none;"></span>
-        </button>
-        
-        <!-- Mensaje de error -->
-        <div id="loginError" class="alert alert-error" role="alert" style="display: none;"></div>
-      </form>
-      
-      <div class="login-links">
-        <a href="#" id="forgotPassword" class="link">¿Olvidaste tu contraseña?</a>
-        <a href="#" id="registerLink" class="link">Registrar nuevo usuario</a>
-      </div>
-    </div>
+  <div class="login-container">
+    <h1>Iniciar sesión</h1>
     
-    <div class="login-footer">
-      <p>© 2023 Gestor de Encordados. Todos los derechos reservados.</p>
-      <p class="text-muted">v1.0.0</p>
-    </div>
+    <!-- Formulario de Login -->
+    <form id="loginForm" class="login-form">
+      <div class="form-group">
+        <label for="email">Email:</label>
+        <input 
+          type="email" 
+          id="email" 
+          required
+          placeholder="usuario@ejemplo.com"
+        >
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Contraseña:</label>
+        <input 
+          type="password" 
+          id="password" 
+          required
+          placeholder="••••••••"
+          minlength="6"
+        >
+      </div>
+      
+      <button type="submit" class="btn btn-primary">Ingresar</button>
+      
+      <!-- Mensaje de error -->
+      <div id="loginError" class="error-message" style="display: none;"></div>
+    </form>
   </div>
+
+<div class="login-links">
+  <a href="#" id="forgotPassword">¿Olvidaste tu contraseña?</a>
+  <a href="#" id="registerLink">Registrar nuevo usuario</a>
+</div>
 
   <!-- Scripts -->
   <script type="module">
-    import { iniciarSesion, enviarEmailRecuperacion } from './auth.js';
-    import { mostrarCarga, ocultarCarga } from './ui-helpers.js';
+    import { iniciarSesion } from './auth.js';
     
-    // Elementos del DOM
-    const loginForm = document.getElementById("loginForm");
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const errorContainer = document.getElementById("loginError");
-    const forgotPasswordLink = document.getElementById("forgotPassword");
-    const registerLink = document.getElementById("registerLink");
-    const btnSubmit = loginForm.querySelector("button[type='submit']");
-    const btnText = btnSubmit.querySelector(".btn-text");
-    const btnLoader = btnSubmit.querySelector(".btn-loader");
-    
-    // Recordar credenciales si existe en localStorage
-    if(localStorage.getItem("rememberMe") === "true") {
-      emailInput.value = localStorage.getItem("savedEmail") || "";
-      document.getElementById("rememberMe").checked = true;
-    }
-    
-    // Manejo del login
-    loginForm.addEventListener("submit", async (e) => {
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      const rememberMe = document.getElementById("rememberMe").checked;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const errorContainer = document.getElementById("loginError");
       
       try {
-        // Estado de carga
-        mostrarCarga(btnText, btnLoader);
+        // Limpia errores previos
         errorContainer.style.display = "none";
         
         // Intento de login
         await iniciarSesion(email, password);
         
-        // Guardar credenciales si marcó recordar
-        if(rememberMe) {
-          localStorage.setItem("rememberMe", "true");
-          localStorage.setItem("savedEmail", email);
-        } else {
-          localStorage.removeItem("rememberMe");
-          localStorage.removeItem("savedEmail");
-        }
-        
         // Redirige al dashboard tras login exitoso
         window.location.href = "index.html";
         
       } catch (error) {
-        ocultarCarga(btnText, btnLoader);
+        // Manejo de errores
         errorContainer.textContent = obtenerMensajeError(error.code);
         errorContainer.style.display = "block";
-        passwordInput.focus();
       }
-    });
-    
-    // Recuperación de contraseña
-    forgotPasswordLink.addEventListener("click", async (e) => {
-      e.preventDefault();
-      const email = prompt("Por favor ingresa tu email para recuperar tu contraseña:");
-      
-      if(email) {
-        try {
-          await enviarEmailRecuperacion(email.trim());
-          alert(`Se ha enviado un enlace de recuperación a ${email}`);
-        } catch (error) {
-          alert(obtenerMensajeError(error.code));
-        }
-      }
-    });
-    
-    // Registro de nuevo usuario
-    registerLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      // Aquí podrías redirigir a una página de registro o mostrar un modal
-      alert("Funcionalidad de registro en desarrollo");
     });
     
     // Traduce códigos de error de Firebase
@@ -160,12 +81,9 @@
         "auth/user-disabled": "Cuenta deshabilitada",
         "auth/user-not-found": "Usuario no registrado",
         "auth/wrong-password": "Contraseña incorrecta",
-        "auth/too-many-requests": "Demasiados intentos. Intenta más tarde",
-        "auth/network-request-failed": "Error de conexión. Verifica tu internet",
-        "auth/email-already-in-use": "Email ya registrado",
-        "auth/weak-password": "La contraseña debe tener al menos 6 caracteres"
+        "auth/too-many-requests": "Demasiados intentos. Intenta más tarde"
       };
-      return errores[codigo] || "Error al iniciar sesión. Intenta nuevamente.";
+      return errores[codigo] || "Error al iniciar sesión";
     }
   </script>
 </body>
