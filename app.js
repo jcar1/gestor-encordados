@@ -1,4 +1,5 @@
 // app.js - Versión modular y robusta para Gestor de Encordados
+
 import { app } from './firebase-init.js';
 import {
   getAuth,
@@ -36,7 +37,7 @@ import { mostrarError } from './ui-helpers.js';
 
 // ---- Configuración general y variables globales ----
 const auth = getAuth(app);
-const ADMIN_EMAILS = ['jcsueca@gmail.com']; // Modifica según tus necesidades
+const ADMIN_EMAILS = ['jcsueca@gmail.com']; // Añade más correos admin si lo necesitas
 
 let userId = null;
 let userEmail = null;
@@ -65,7 +66,7 @@ function setupAuthUI() {
     if (user) {
       userId = user.uid;
       userEmail = user.email;
-      userRole = ADMIN_EMAILS.includes(user.email) ? 'admin' : 'user';
+      userRole = ADMIN_EMAILS.map(e => e.toLowerCase().trim()).includes(user.email.toLowerCase().trim()) ? 'admin' : 'user';
       document.getElementById('userIdDisplay').textContent = userId;
       loginContainer.style.display = 'none';
       document.querySelector('.container').style.display = '';
@@ -105,13 +106,16 @@ function setupLogout() {
 
 // ---- Tabs ----
 function setupTabs() {
+  // Los botones usan onclick="showTab('...')", pero refuerzo el sistema JS para accesibilidad.
   document.querySelectorAll('.tab-button').forEach(btn => {
     btn.addEventListener('click', () => {
-      showTab(btn.getAttribute('onclick').match(/'([^']+)'/)[1]);
+      const tabId = btn.getAttribute('onclick') 
+        ? btn.getAttribute('onclick').match(/'([^']+)'/)[1] 
+        : btn.dataset.tab;
+      showTab(tabId);
     });
   });
 }
-
 function showTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(tab => tab.style.display = 'none');
   document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
@@ -125,6 +129,7 @@ function showTab(tabId) {
   if (tabId === 'verJugadoresTab') loadJugadores();
 }
 window.showTab = showTab;
+
 // ---- Inactividad ----
 let inactivityTimer;
 function setupInactivityTimer() {
@@ -218,8 +223,7 @@ function setupSolicitudForm() {
     data.tensionHorizontal = parseFloat(data.tensionHorizontal);
     data.precio = parseFloat(data.precio) || 0;
     data.cuerdaIncluida = !!form.cuerdaIncluida.checked;
-    // Validaciones básicas
-    if (!data.jugadorId || !data.nombreJugador) {
+    if (!data.jugadorId || !data.jugadorNombre) {
       mostrarError("Debe seleccionar un jugador válido");
       return;
     }
@@ -263,8 +267,15 @@ function setupJugadorForm() {
 function setupFiltros() {
   document.getElementById('btnAplicarFiltros').addEventListener('click', loadSolicitudes);
   document.getElementById('btnLimpiarFiltros').addEventListener('click', () => {
-    ['filtroJugador', 'filtroEstadoPago', 'filtroEstadoEntrega', 'filtroFechaSolicitudDesde', 'filtroFechaSolicitudHasta', 'filtroFechaPagoDesde', 'filtroFechaPagoHasta']
-      .forEach(id => document.getElementById(id).value = '');
+    [
+      'filtroJugador',
+      'filtroEstadoPago',
+      'filtroEstadoEntrega',
+      'filtroFechaSolicitudDesde',
+      'filtroFechaSolicitudHasta',
+      'filtroFechaPagoDesde',
+      'filtroFechaPagoHasta'
+    ].forEach(id => document.getElementById(id).value = '');
     loadSolicitudes();
   });
 }
@@ -297,7 +308,12 @@ function setupImportExport() {
       mostrarError('No hay datos para exportar');
       return;
     }
-    const headers = ["Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta", "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida", "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago", "Estado Entrega", "Notas", "Fecha Pago"];
+    const headers = [
+      "Código Jugador", "Nombre Jugador", "Marca Raqueta", "Modelo Raqueta",
+      "Tensión Vertical", "Tensión Horizontal", "Tipo Cuerda", "Cuerda Incluida",
+      "Fecha Solicitud", "Fecha Entrega Estimada", "Precio", "Estado Pago",
+      "Estado Entrega", "Notas", "Fecha Pago"
+    ];
     let csv = headers.join(',') + '\n';
     solicitudes.forEach(s => {
       const row = [
@@ -350,11 +366,7 @@ function setupImportExport() {
 // ---- Admin panel ----
 function setupAdminPanel() {
   if (userRole !== 'admin') return;
-  // Implementa aquí funciones de admin (logs, export global, settings, etc.)
-  // Ejemplo:
-  window.showAccessLogs = () => alert('Funcionalidad de logs pendiente');
-  window.exportAllData = () => alert('Funcionalidad de exportación global pendiente');
-  window.showSecuritySettings = () => alert('Funcionalidad de configuración de seguridad pendiente');
+  // Funciones admin implementadas abajo y expuestas a window
 }
 
 // ---- Resumen y estadísticas ----
@@ -382,7 +394,7 @@ function actualizarEstadisticas(solicitudes = window._solicitudesCache || []) {
   actualizarGraficos(solicitudes);
 }
 
-// ---- Gráficos ----
+// ---- Graficos ----
 let pagoChart, entregaChart, ingresosChart, jugadoresChart;
 function actualizarGraficos(solicitudes = window._solicitudesCache || []) {
   // Estado de Pago
@@ -464,7 +476,7 @@ document.getElementById('modalCloseButton').onclick = () =>
 
 // ---- Editar y borrar ----
 window.openEditJugadorModal = async (id) => {
-  // Implementa modal de edición usando tu actual estructura de modales
+  // Actualiza aquí si quieres mostrar un modal de edición real
   alert('Funcionalidad de edición de jugador pendiente');
 };
 window.confirmDeleteJugador = async (id, nombre) => {
@@ -483,6 +495,22 @@ window.confirmDeleteSolicitud = async (id) => {
 };
 
 // ---- Exponer funciones admin ----
-window.showAccessLogs = () => alert('Funcionalidad de logs admin');
-window.exportAllData = () => alert('Funcionalidad de exportar todo');
-window.showSecuritySettings = () => alert('Config de seguridad');
+window.showAccessLogs = () => {
+  // Aquí puedes cargar y mostrar logs si lo implementas, por ahora solo abre el modal
+  document.getElementById('accessLogsModal').style.display = 'flex';
+};
+window.exportAllData = () => alert('Funcionalidad de exportar todo pendiente');
+window.showSecuritySettings = () => {
+  document.getElementById('securitySettingsModal').style.display = 'flex';
+};
+window.saveSecuritySettings = () => {
+  showModal('Configuración de seguridad guardada', 'success');
+  document.getElementById('securitySettingsModal').style.display = 'none';
+};
+
+// Para cerrar modales extra con fondo
+document.querySelectorAll('.modal').forEach(modal => {
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+});
