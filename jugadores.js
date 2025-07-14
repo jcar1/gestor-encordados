@@ -14,7 +14,7 @@ import {
 import { validarEmail } from "./utilidades.js";
 
 const db = getFirestore();
-const jugadoresRef = collection(db, "jugadores");
+const jugadoresRef = collection(db, "users");
 
 // Obtener todos los jugadores ordenados
 export async function obtenerJugadores(busqueda = "") {
