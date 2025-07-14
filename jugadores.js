@@ -1,4 +1,4 @@
-// jugadores.js - Versión mejorada y corregida para guardar el campo "codigo"
+// jugadores.js - Versión corregida con campo "codigo" y soporte de edición
 import { 
   getFirestore, 
   collection, 
@@ -20,7 +20,6 @@ const jugadoresRef = collection(db, "jugadores");
 export async function obtenerJugadores(busqueda = "") {
   try {
     let q = query(jugadoresRef, orderBy("nombreCompleto"));
-    
     if (busqueda) {
       q = query(
         jugadoresRef,
@@ -28,7 +27,6 @@ export async function obtenerJugadores(busqueda = "") {
         where("nombreCompleto", "<=", busqueda + "\uf8ff")
       );
     }
-    
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
@@ -37,7 +35,7 @@ export async function obtenerJugadores(busqueda = "") {
   }
 }
 
-// Agregar nuevo jugador (CORREGIDO para guardar 'codigo')
+// Agregar nuevo jugador (GUARDA 'codigo')
 export async function agregarJugador(data) {
   try {
     // Validar datos básicos
@@ -67,13 +65,12 @@ export async function agregarJugador(data) {
   }
 }
 
-// Actualizar jugador existente
+// Actualizar jugador existente (INCLUYE 'codigo')
 export async function actualizarJugador(id, data) {
   try {
     const jugadorDoc = doc(jugadoresRef, id);
     const updateData = {};
-
-    // Solo actualizar campos permitidos
+    // Actualizar todos los campos permitidos, incluido el código
     if (data.codigo) {
       updateData.codigo = data.codigo.trim();
     }
@@ -95,7 +92,6 @@ export async function actualizarJugador(id, data) {
     if (data.notas) {
       updateData.notas = data.notas.trim();
     }
-
     await updateDoc(jugadorDoc, updateData);
     return { id, ...updateData };
   } catch (error) {
