@@ -1,134 +1,25 @@
-// jugadores.js - Versión mejorada
-import { 
-  getFirestore, 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy,
-  where
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { validarEmail } from "./utilidades.js";
+// jugadores.js
+import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const db = getFirestore();
 const jugadoresRef = collection(db, "jugadores");
 
-// Obtener todos los jugadores ordenados
-export async function obtenerJugadores(busqueda = "") {
-  try {
-    let q = query(jugadoresRef, orderBy("nombreCompleto"));
-    
-    if (busqueda) {
-      q = query(
-        jugadoresRef,
-        where("nombreCompleto", ">=", busqueda),
-        where("nombreCompleto", "<=", busqueda + "\uf8ff")
-      );
-    }
-    
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error al obtener jugadores:", error);
-    throw new Error("No se pudieron cargar los jugadores");
-  }
+export async function obtenerJugadores() {
+  const q = query(jugadoresRef, orderBy("nombreCompleto"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// Agregar nuevo jugador
 export async function agregarJugador(data) {
-  try {
-    // Validar datos básicos
-    if (!data.nombreCompleto || data.nombreCompleto.trim() === "") {
-      throw new Error("El nombre completo es requerido");
-    }
-    
-    if (data.email && !validarEmail(data.email)) {
-      throw new Error("El email no es válido");
-    }
-    
-    const jugadorData = {
-      nombreCompleto: data.nombreCompleto.trim(),
-      telefono: data.telefono?.trim() || "",
-      email: data.email?.trim() || "",
-      nivel: data.nivel || "intermedio",
-      fechaRegistro: new Date().toISOString(),
-      notas: data.notas?.trim() || ""
-    };
-    
-    const docRef = await addDoc(jugadoresRef, jugadorData);
-    return { id: docRef.id, ...jugadorData };
-  } catch (error) {
-    console.error("Error al agregar jugador:", error);
-    throw error;
-  }
+  return await addDoc(jugadoresRef, data);
 }
 
-// Actualizar jugador existente
 export async function actualizarJugador(id, data) {
-  try {
-    const jugadorDoc = doc(jugadoresRef, id);
-    const updateData = {};
-    
-    // Solo actualizar campos permitidos
-    if (data.nombreCompleto) {
-      updateData.nombreCompleto = data.nombreCompleto.trim();
-    }
-    
-    if (data.telefono) {
-      updateData.telefono = data.telefono.trim();
-    }
-    
-    if (data.email) {
-      if (!validarEmail(data.email)) {
-        throw new Error("El email no es válido");
-      }
-      updateData.email = data.email.trim();
-    }
-    
-    if (data.nivel) {
-      updateData.nivel = data.nivel;
-    }
-    
-    if (data.notas) {
-      updateData.notas = data.notas.trim();
-    }
-    
-    await updateDoc(jugadorDoc, updateData);
-    return { id, ...updateData };
-  } catch (error) {
-    console.error("Error al actualizar jugador:", error);
-    throw error;
-  }
+  const jugadorDoc = doc(jugadoresRef, id);
+  return await updateDoc(jugadorDoc, data);
 }
 
-// Eliminar jugador
 export async function eliminarJugador(id) {
-  try {
-    const jugadorDoc = doc(jugadoresRef, id);
-    await deleteDoc(jugadorDoc);
-    return id;
-  } catch (error) {
-    console.error("Error al eliminar jugador:", error);
-    throw new Error("No se pudo eliminar el jugador");
-  }
-}
-
-// Buscar jugador por código o nombre
-export async function buscarJugador(termino) {
-  try {
-    const q = query(
-      jugadoresRef,
-      where("nombreCompleto", ">=", termino),
-      where("nombreCompleto", "<=", termino + "\uf8ff")
-    );
-    
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error al buscar jugador:", error);
-    throw new Error("No se pudo realizar la búsqueda");
-  }
+  const jugadorDoc = doc(jugadoresRef, id);
+  return await deleteDoc(jugadorDoc);
 }
