@@ -1,4 +1,4 @@
-// jugadores.js - Versión mejorada
+// jugadores.js - Versión mejorada y corregida para guardar el campo "codigo"
 import { 
   getFirestore, 
   collection, 
@@ -37,19 +37,21 @@ export async function obtenerJugadores(busqueda = "") {
   }
 }
 
-// Agregar nuevo jugador
+// Agregar nuevo jugador (CORREGIDO para guardar 'codigo')
 export async function agregarJugador(data) {
   try {
     // Validar datos básicos
+    if (!data.codigo || data.codigo.trim() === "") {
+      throw new Error("El código es requerido");
+    }
     if (!data.nombreCompleto || data.nombreCompleto.trim() === "") {
       throw new Error("El nombre completo es requerido");
     }
-    
     if (data.email && !validarEmail(data.email)) {
       throw new Error("El email no es válido");
     }
-    
     const jugadorData = {
+      codigo: data.codigo?.trim() || "",
       nombreCompleto: data.nombreCompleto.trim(),
       telefono: data.telefono?.trim() || "",
       email: data.email?.trim() || "",
@@ -57,7 +59,6 @@ export async function agregarJugador(data) {
       fechaRegistro: new Date().toISOString(),
       notas: data.notas?.trim() || ""
     };
-    
     const docRef = await addDoc(jugadoresRef, jugadorData);
     return { id: docRef.id, ...jugadorData };
   } catch (error) {
@@ -71,31 +72,30 @@ export async function actualizarJugador(id, data) {
   try {
     const jugadorDoc = doc(jugadoresRef, id);
     const updateData = {};
-    
+
     // Solo actualizar campos permitidos
+    if (data.codigo) {
+      updateData.codigo = data.codigo.trim();
+    }
     if (data.nombreCompleto) {
       updateData.nombreCompleto = data.nombreCompleto.trim();
     }
-    
     if (data.telefono) {
       updateData.telefono = data.telefono.trim();
     }
-    
     if (data.email) {
       if (!validarEmail(data.email)) {
         throw new Error("El email no es válido");
       }
       updateData.email = data.email.trim();
     }
-    
     if (data.nivel) {
       updateData.nivel = data.nivel;
     }
-    
     if (data.notas) {
       updateData.notas = data.notas.trim();
     }
-    
+
     await updateDoc(jugadorDoc, updateData);
     return { id, ...updateData };
   } catch (error) {
@@ -124,7 +124,6 @@ export async function buscarJugador(termino) {
       where("nombreCompleto", ">=", termino),
       where("nombreCompleto", "<=", termino + "\uf8ff")
     );
-    
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
