@@ -124,7 +124,7 @@ function showTab(tabId) {
   if (tabId === 'estadisticasTab') actualizarEstadisticas();
   if (tabId === 'verJugadoresTab') loadJugadores();
 }
-
+window.showTab = showTab;
 // ---- Inactividad ----
 let inactivityTimer;
 function setupInactivityTimer() {
@@ -486,4 +486,3 @@ window.confirmDeleteSolicitud = async (id) => {
 window.showAccessLogs = () => alert('Funcionalidad de logs admin');
 window.exportAllData = () => alert('Funcionalidad de exportar todo');
 window.showSecuritySettings = () => alert('Config de seguridad');
-window.showTab = showTab;
