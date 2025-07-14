@@ -1,4 +1,3 @@
-// jugadores.js
 import { 
   getFirestore, 
   collection, 
