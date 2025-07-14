@@ -1,4 +1,4 @@
-// jugadores.js - Versión corregida con campo "codigo" y soporte de edición
+// jugadores.js
 import { 
   getFirestore, 
   collection, 
@@ -35,10 +35,9 @@ export async function obtenerJugadores(busqueda = "") {
   }
 }
 
-// Agregar nuevo jugador (GUARDA 'codigo')
+// Agregar nuevo jugador
 export async function agregarJugador(data) {
   try {
-    // Validar datos básicos
     if (!data.codigo || data.codigo.trim() === "") {
       throw new Error("El código es requerido");
     }
@@ -65,33 +64,23 @@ export async function agregarJugador(data) {
   }
 }
 
-// Actualizar jugador existente (INCLUYE 'codigo')
+// Actualizar jugador existente
 export async function actualizarJugador(id, data) {
   try {
     const jugadorDoc = doc(jugadoresRef, id);
     const updateData = {};
-    // Actualizar todos los campos permitidos, incluido el código
-    if (data.codigo) {
-      updateData.codigo = data.codigo.trim();
-    }
-    if (data.nombreCompleto) {
-      updateData.nombreCompleto = data.nombreCompleto.trim();
-    }
-    if (data.telefono) {
-      updateData.telefono = data.telefono.trim();
-    }
+    if (data.codigo) updateData.codigo = data.codigo.trim();
+    if (data.nombreCompleto) updateData.nombreCompleto = data.nombreCompleto.trim();
+    if (data.telefono) updateData.telefono = data.telefono.trim();
     if (data.email) {
       if (!validarEmail(data.email)) {
         throw new Error("El email no es válido");
       }
       updateData.email = data.email.trim();
     }
-    if (data.nivel) {
-      updateData.nivel = data.nivel;
-    }
-    if (data.notas) {
-      updateData.notas = data.notas.trim();
-    }
+    if (data.nivel) updateData.nivel = data.nivel;
+    if (data.notas) updateData.notas = data.notas.trim();
+
     await updateDoc(jugadorDoc, updateData);
     return { id, ...updateData };
   } catch (error) {
